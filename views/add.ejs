@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Comic-app</title>
+        <link rel="stylesheet" href="/css/style.css" />
+    </head>
+    <body>
+        <header>
+            <h1><a href="/home">Comic-app</a></h1>
+            <a href="/logout" onclick="return confirm('ログアウトしますか？');">ログアウト</a>
+            <p>こんにちは、<%= username %>さん</p>
+        </header>
+        <div class="container">
+            <div class="panel">
+                <h2>漫画を追加</h2>
+                <form action="/add" method="post">
+                    <label for="comic_name">漫画名:</label>
+                    <input type="text" id="comic_name" name="comic_name" required />
+                    <label for="volume">巻数:</label>
+                    <input type="number" id="volume" name="volume" />
+                    <input type="submit" value="追加" />
+                </form>
+                <% if (error) { %>
+                    <p class="error"><%= error %></p>
+                <% } %>
+            </div>
+            <a href="/list">漫画一覧へ</a>
+        </div>
+        <footer>
+            <p>&copy; 2023 Comic-app. All rights reserved.</p>
+        </footer>
+</html>

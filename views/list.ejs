@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Comic-app</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <header>
+        <h1><a href="/home">Comic-app</a></h1>
+    </header>
+    <div class="container">
+      <div class="panel">
+        <form action="/list" method="get">
+          <input type="text" name="search" placeholder="漫画を検索" />
+          <input type="submit" value="検索" />
+        </form>
+        <a href="/add">漫画を追加 </a>
+        <h2>漫画一覧</h2>
+        <ul>
+          <% comics.forEach(function(comic) { %>
+            <li><%= comic.comic_name %></li>
+          <% }); %>
+        </ul>
+      </div>
+      <footer>
+        <p>&copy; 2023 Comic-app. All rights reserved.</p>
+      </footer>
+    </div>
+  </body>
+</html>
