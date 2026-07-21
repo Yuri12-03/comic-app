@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Chat Room</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 40px;
+      }
+      #chat-container {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 16px;
+        max-width: 600px;
+        min-height: 260px;
+        margin-bottom: 16px;
+        background: #fafafa;
+      }
+      .message {
+        margin-bottom: 10px;
+      }
+      .message strong {
+        display: inline-block;
+        margin-right: 8px;
+      }
+      .controls {
+        margin-bottom: 12px;
+        max-width: 600px;
+      }
+      #recipient-select {
+        padding: 6px;
+      }
+      #message-form {
+        display: flex;
+        gap: 8px;
+        max-width: 600px;
+      }
+      #message-input {
+        flex: 1;
+        padding: 8px;
+      }
+      button {
+        padding: 8px 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Chat Room</h1>
+    <p>ルーム: <strong><%= roomName %></strong></p>
+
+    <div class="controls">
+      <label for="recipient-select">相手を選択:</label>
+      <select id="recipient-select">
+        <option value="">全体チャット</option>
+        <% contacts.forEach((contact) => { %>
+          <option value="<%= contact.id %>" data-name="<%= contact.username %>"><%= contact.username %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <div id="chat-container"></div>
+
+    <form id="message-form">
+      <input
+        type="text"
+        id="message-input"
+        placeholder="メッセージを入力してください"
+        autocomplete="off"
+      />
+      <button type="submit">送信</button>
+    </form>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      const chatContainer = document.getElementById("chat-container");
+      const messageForm = document.getElementById("message-form");
+      const messageInput = document.getElementById("message-input");
+      const recipientSelect = document.getElementById("recipient-select");
+      const username = "<%= username %>";
+
+      function appendMessage(message) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "message";
+
+        const nameElement = document.createElement("strong");
+        const label = message.type === "direct" ? `${message.fromUsername} → ${message.toUsername || "相手"}` : message.username || message.fromUsername;
+        nameElement.textContent = label;
+
+        const textElement = document.createElement("span");
+        textElement.textContent = message.text;
+
+        wrapper.appendChild(nameElement);
+        wrapper.appendChild(textElement);
+        chatContainer.appendChild(wrapper);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+
+      socket.on("chat:history", (messages) => {
+        chatContainer.innerHTML = "";
+        if (!Array.isArray(messages)) {
+          return;
+        }
+        messages.forEach((message) => appendMessage(message));
+      });
+
+      recipientSelect.addEventListener("change", () => {
+        chatContainer.innerHTML = "";
+        const recipientId = Number(recipientSelect.value || 0) || null;
+        socket.emit("chat:openConversation", {
+          recipientId,
+        });
+      });
+
+      socket.on("chat:message", (message) => {
+        appendMessage(message);
+      });
+
+      socket.on("chat:direct", (message) => {
+        appendMessage(message);
+      });
+
+      messageForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const text = messageInput.value.trim();
+        if (!text) {
+          return;
+        }
+
+        const recipientId = Number(recipientSelect.value || 0) || null;
+        const recipientName = recipientSelect.options[recipientSelect.selectedIndex]?.dataset?.name || null;
+
+        socket.emit("chat:message", {
+          text,
+          recipientId,
+          recipientName,
+        });
+
+        if (!recipientId) {
+          appendMessage({
+            username,
+            text,
+            type: "room",
+          });
+        } else {
+          appendMessage({
+            fromUsername: username,
+            toUsername: recipientName,
+            text,
+            type: "direct",
+          });
+        }
+
+        messageInput.value = "";
+      });
+    </script>
+  </body>
+</html>

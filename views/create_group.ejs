@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Comic-app</title>
+        <link rel="stylesheet" href="/css/style.css" />
+    </head>
+    <body>
+        <header>
+        <h1><a href="/home">Comic-app</a></h1>
+        <a href="/logout" onclick="return confirm('ログアウトしますか？');"
+            >ログアウト</a
+        >
+        <p>こんにちは、<%= username %>さん</p>
+        </header>
+        <div class="container">
+        <div class="panel">
+            <h2>グループ作成</h2>
+            <form action="/create_group" method="post">
+            <label for="group_name">グループ名:</label>
+            <input type="text" id="group_name" name="group_name" required />
+             <h3>招待するメンバー</h3>
+
+    <div id="email-list">
+        <div class="email-item">
+            <input
+                type="email"
+                name="emails"
+                placeholder="メールアドレス"
+                required
+            >
+        </div>
+    </div>
+
+    <button type="button" id="add-email">＋ メールアドレスを追加</button>
+
+    <br><br>
+            <input type="submit" value="作成" />
+            </form>
+            <% if (error) { %>
+            <p class="error"><%= error %></p>
+            <% } %>
+        </div>
+        <a href="/home">ホームへ戻る</a>
+        </div>
+        <footer>
+        <p>&copy; 2023 Comic-app. All rights reserved.</p>
+        </footer>
+        <script>
+document.getElementById("add-email").addEventListener("click", () => {
+    const div = document.createElement("div");
+    div.className = "email-item";
+
+    div.innerHTML = `
+        <input
+            type="email"
+            name="emails"
+            placeholder="メールアドレス"
+            required
+        >
+        <button type="button" class="remove-email">削除</button>
+    `;
+
+    document.getElementById("email-list").appendChild(div);
+});
+
+document.addEventListener("click", (e) => {
+    if (e.target.classList.contains("remove-email")) {
+        e.target.parentElement.remove();
+    }
+});
+</script>
+    </body>
+</html>
