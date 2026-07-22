@@ -459,6 +459,7 @@ app.get("/comics/:id", async (req, res) => {
     const [volumes] = await connection.promise().query(
       `
       SELECT
+          co.id AS owning_id,
           cv.volume,
           cv.image_url,
           co.price,
@@ -526,6 +527,8 @@ app.get("/add", (req, res) => {
     return res.redirect("/login");
   }
 
+  const presetComicName = req.query.comic_name || "";
+
   connection.query(
     `SELECT user_groups.id, user_groups.group_name
      FROM user_groups
@@ -543,6 +546,7 @@ app.get("/add", (req, res) => {
         username: req.session.username,
         error: null,
         groups: groups,
+        comicName: presetComicName,
       });
     },
   );
@@ -660,6 +664,97 @@ app.post("/add", async (req, res) => {
   } catch (err) {
     console.error("データベースまたは処理エラー:", err);
     return res.status(500).send("エラーが発生しました: " + err.message);
+  }
+});
+
+app.get("/lend/:owningId", async (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.redirect("/login");
+  }
+
+  const owningId = Number(req.params.owningId);
+
+  if (Number.isNaN(owningId)) {
+    return res.status(400).send("不正な所有情報です");
+  }
+
+  try {
+    const [owningRows] = await connection.promise().query(
+      `SELECT co.id, co.group_id, co.comic_id, co.volume, co.price, c.comic_name
+       FROM comic_owning co
+       JOIN comics c ON co.comic_id = c.id
+       WHERE co.id = ?`,
+      [owningId],
+    );
+
+    if (owningRows.length === 0) {
+      return res.status(404).send("貸し出し対象が見つかりません");
+    }
+
+    const owning = owningRows[0];
+
+    res.render("lending.ejs", {
+      username: req.session.username,
+      owning,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("貸し出し画面の読み込みに失敗しました");
+  }
+});
+
+app.post("/lend/:owningId", async (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.redirect("/login");
+  }
+
+  const owningId = Number(req.params.owningId);
+  const borrowerEmail = (req.body.borrower_email || "").trim();
+  const dueDays = Number(req.body.due_days || 7);
+
+  if (Number.isNaN(owningId)) {
+    return res.status(400).send("不正な所有情報です");
+  }
+
+  if (!borrowerEmail) {
+    return res.status(400).send("借り手のメールアドレスを入力してください");
+  }
+
+  if (!Number.isFinite(dueDays) || dueDays <= 0) {
+    return res.status(400).send("返却日数は1以上で指定してください");
+  }
+
+  try {
+    const [userRows] = await connection
+      .promise()
+      .query(`SELECT id FROM users WHERE email = ?`, [borrowerEmail]);
+
+    if (userRows.length === 0) {
+      return res
+        .status(404)
+        .send("指定されたメールアドレスのユーザーが見つかりません");
+    }
+
+    const borrowerId = userRows[0].id;
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + dueDays);
+
+    await connection.promise().query(
+      `INSERT INTO lending (owning_id, borrower_id, lender_id, due, status)
+       VALUES (?, ?, ?, ?, 'lending')`,
+      [
+        owningId,
+        borrowerId,
+        req.session.userId,
+        dueDate.toISOString().slice(0, 10),
+      ],
+    );
+
+    res.redirect(`/comics/${req.body.comic_id}`);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("貸し出し登録に失敗しました");
   }
 });
 

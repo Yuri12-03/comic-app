@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>貸し出し | Comic-app</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1><a href="/home">Comic-app</a></h1>
+      <a href="/logout" onclick="return confirm('ログアウトしますか？');">ログアウト</a>
+      <p>こんにちは、<%= username %>さん</p>
+    </header>
+
+    <div class="container">
+      <div class="panel">
+        <h2>貸し出し登録</h2>
+        <p><strong><%= owning.comic_name %></strong> 第<%= owning.volume %>巻 を貸し出します。</p>
+
+        <% if (error) { %>
+          <p class="error"><%= error %></p>
+        <% } %>
+
+        <form action="/lend/<%= owning.id %>" method="post">
+          <input type="hidden" name="comic_id" value="<%= owning.comic_id %>" />
+
+          <label for="borrower_email">借りる相手のメールアドレス:</label>
+          <input type="email" id="borrower_email" name="borrower_email" required />
+
+          <label for="due_days">何日後に返すか:</label>
+          <input type="number" id="due_days" name="due_days" min="1" value="7" required />
+
+          <br /><br />
+          <input type="submit" value="貸し出し登録" />
+        </form>
+      </div>
+
+      <a href="/comics/<%= owning.comic_id %>">漫画詳細へ戻る</a>
+    </div>
+
+    <footer>
+      <p>&copy; 2023 Comic-app. All rights reserved.</p>
+    </footer>
+  </body>
+</html>

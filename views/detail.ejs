@@ -56,6 +56,7 @@
 
                 <!-- 削除や編集ボタンを設置する場合の例 -->
                 <div class="volume-actions">
+                  <a href="/lend/<%= volume.owning_id %>" class="btn-add">貸し出す</a>
                   <form action="/delete-volume" method="post" onsubmit="return confirm('本当に削除しますか？');">
                     <input type="hidden" name="comic_id" value="<%= comic.id %>">
                     <input type="hidden" name="volume" value="<%= volume.volume %>">
