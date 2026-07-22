@@ -461,7 +461,6 @@ app.get("/comics/:id", async (req, res) => {
       SELECT
           cv.volume,
           cv.image_url,
-          cv.isbn,
           co.price,
           ug.group_name
       FROM comic_volumes cv
@@ -509,7 +508,6 @@ app.get("/comics/:id", async (req, res) => {
         image_url: imageUrlValue !== "" ? imageUrlValue : defaultImage,
         price: normalizedPrice,
         group_name: volume.group_name || "未設定",
-        isbn: typeof volume.isbn === "string" ? volume.isbn : "",
       };
     });
 
