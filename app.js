@@ -29,18 +29,13 @@ const connection = mysql.createPool({
   },
 });
 
-connection.connect((err) => {
+connection.query("SELECT 1", (err) => {
   if (err) {
     console.error("MySQL接続エラー:", err);
-    return;
+  } else {
+    console.log("MySQLに接続しました");
   }
-  console.log("MySQLに接続しました");
 });
-
-console.log("HOST:", process.env.DB_HOST);
-console.log("PORT:", process.env.DB_PORT);
-console.log("USER:", process.env.DB_USER);
-console.log("DB:", process.env.DB_NAME);
 
 app.use((req, res, next) => {
   if (req.session.userId === undefined) {
@@ -279,115 +274,131 @@ app.post("/add", async (req, res) => {
   const price = Number(req.body.price) || 0;
   const groupId = req.body.group_id;
 
-  // MySQL2のpromiseインスタンスを取得
-  const db = connection.promise();
-
   try {
-    // トランザクション開始
-    await db.beginTransaction();
-
     let comicId;
 
-    // 1. comicsに存在するか確認
-    const [comicResults] = await db.query(
-      "SELECT id FROM comics WHERE comic_name = ?",
-      [comicName],
-    );
+    // comicsに存在するか確認
+    const [comicResults] = await connection
+      .promise()
+      .query("SELECT id FROM comics WHERE comic_name = ?", [comicName]);
 
     if (comicResults.length > 0) {
+      // 既存漫画
       comicId = comicResults[0].id;
     } else {
-      // 新規漫画の場合：API検索（巻数も含めて検索精度を向上）
+      // 楽天API検索
+      const response = await axios.get(
+        "https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404",
+        {
+          params: {
+            applicationId: process.env.RAKUTEN_APP_ID,
+            title: comicName,
+          },
+        },
+      );
+
       let author = "";
       let publisher = "";
+      let imageUrl = "";
+      let isbn = "";
 
-      try {
-        const response = await axios.get(
-          "https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404",
-          {
-            params: {
-              applicationId: process.env.RAKUTEN_APP_ID,
-              title: `${comicName} ${volume}巻`,
-            },
-            timeout: 3000, // 3秒でタイムアウト設定
-          },
-        );
+      if (response.data.Items.length > 0) {
+        const book = response.data.Items[0].Item;
 
-        if (response.data.Items && response.data.Items.length > 0) {
-          const book = response.data.Items[0].Item;
-          author = book.author || "";
-          publisher = book.publisherName || "";
-        }
-      } catch (apiErr) {
-        console.warn("楽天API取得失敗（comics新規作成時）:", apiErr.message);
-        // APIが失敗してもDB登録は続行する
+        author = book.author || "";
+        publisher = book.publisherName || "";
+        imageUrl = book.largeImageUrl || "";
+        isbn = book.isbn || "";
       }
 
       // comics追加
-      const [insertComic] = await db.query(
-        `INSERT INTO comics (comic_name, latest_volume, author, publisher)
-         VALUES (?, ?, ?, ?)`,
+      const [insertComic] = await connection.promise().query(
+        `
+          INSERT INTO comics
+          (comic_name, latest_volume, author, publisher)
+          VALUES (?, ?, ?, ?)
+          `,
         [comicName, volume, author, publisher],
       );
 
       comicId = insertComic.insertId;
-    }
 
-    // 2. 巻情報（comic_volumes）が存在するか確認
-    const [volumeResults] = await db.query(
-      `SELECT id FROM comic_volumes WHERE comic_id = ? AND volume = ?`,
-      [comicId, volume],
-    );
-
-    // 巻情報がない場合のみ追加
-    if (volumeResults.length === 0) {
-      let isbn = "";
-      let imageUrl = "";
-
-      try {
-        const response = await axios.get(
-          "https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404",
-          {
-            params: {
-              applicationId: process.env.RAKUTEN_APP_ID,
-              title: `${comicName} ${volume}巻`,
-            },
-            timeout: 3000,
-          },
-        );
-
-        if (response.data.Items && response.data.Items.length > 0) {
-          const book = response.data.Items[0].Item;
-          isbn = book.isbn || "";
-          imageUrl = book.largeImageUrl || "";
-        }
-      } catch (apiErr) {
-        console.warn("楽天API取得失敗（volume追加時）:", apiErr.message);
-      }
-
-      await db.query(
-        `INSERT INTO comic_volumes (comic_id, volume, isbn, image_url)
-         VALUES (?, ?, ?, ?)`,
+      // comic_volumes追加
+      await connection.promise().query(
+        `
+          INSERT INTO comic_volumes
+          (comic_id, volume, isbn, image_url)
+          VALUES (?, ?, ?, ?)
+          `,
         [comicId, volume, isbn, imageUrl],
       );
     }
 
-    // 3. 所持情報の重複確認
-    const [owningResults] = await db.query(
-      `SELECT id FROM comic_owning
-       WHERE group_id = ? AND comic_id = ? AND volume = ?`,
+    // 巻情報が存在するか確認
+    const [volumeResults] = await connection.promise().query(
+      `
+        SELECT id
+        FROM comic_volumes
+        WHERE comic_id = ?
+        AND volume = ?
+        `,
+      [comicId, volume],
+    );
+
+    // 巻情報がない場合追加
+    if (volumeResults.length === 0) {
+      const response = await axios.get(
+        "https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404",
+        {
+          params: {
+            applicationId: process.env.RAKUTEN_APP_ID,
+            title: `${comicName} ${volume}巻`,
+          },
+        },
+      );
+
+      let isbn = "";
+      let imageUrl = "";
+
+      if (response.data.Items.length > 0) {
+        const book = response.data.Items[0].Item;
+
+        isbn = book.isbn || "";
+        imageUrl = book.largeImageUrl || "";
+      }
+
+      await connection.promise().query(
+        `
+          INSERT INTO comic_volumes
+          (comic_id, volume, isbn, image_url)
+          VALUES (?, ?, ?, ?)
+          `,
+        [comicId, volume, isbn, imageUrl],
+      );
+    }
+
+    // comic_owning重複確認
+    const [owningResults] = await connection.promise().query(
+      `
+        SELECT id
+        FROM comic_owning
+        WHERE group_id = ?
+        AND comic_id = ?
+        AND volume = ?
+        `,
       [groupId, comicId, volume],
     );
 
     if (owningResults.length > 0) {
-      // 重複時はロールバックしてフォームに戻す
-      await db.rollback();
-
-      const [groups] = await db.query(
-        `SELECT user_groups.id, user_groups.group_name
-         FROM user_groups
-         JOIN group_members ON user_groups.id = group_members.group_id
-         WHERE group_members.user_id = ?`,
+      const [groups] = await connection.promise().query(
+        `
+          SELECT user_groups.id,
+                 user_groups.group_name
+          FROM user_groups
+          JOIN group_members
+          ON user_groups.id = group_members.group_id
+          WHERE group_members.user_id = ?
+          `,
         [req.session.userId],
       );
 
@@ -398,25 +409,20 @@ app.post("/add", async (req, res) => {
       });
     }
 
-    // 4. 所持情報追加
-    await db.query(
-      `INSERT INTO comic_owning (group_id, comic_id, volume, price)
-       VALUES (?, ?, ?, ?)`,
+    // 所持情報追加
+    await connection.promise().query(
+      `
+        INSERT INTO comic_owning
+        (group_id, comic_id, volume, price)
+        VALUES (?, ?, ?, ?)
+        `,
       [groupId, comicId, volume, price],
     );
 
-    // すべての処理が成功したらコミット
-    await db.commit();
     res.redirect("/list");
   } catch (err) {
-    // エラー発生時はロールバック
-    await db.rollback();
-    console.error("登録処理エラー:", err);
-
-    // ユーザーには詳細なスタックトレースを見せない
-    res
-      .status(500)
-      .send("サーバーエラーが発生しました。時間をおいて再度お試しください。");
+    console.error(err);
+    res.send(err);
   }
 });
 
