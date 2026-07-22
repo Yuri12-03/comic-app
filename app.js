@@ -44,57 +44,89 @@ async function fetchBookFromGoogle(comicName, volume) {
       "https://www.googleapis.com/books/v1/volumes",
       {
         params: {
-          q: `${comicName} ${volume}巻`,
-          maxResults: 1,
+          q: `intitle:${comicName} ${volume} -小説 -ノベライズ -ファンブック`,
+          maxResults: 10,
           langRestrict: "ja",
           key: process.env.GOOGLE_BOOKS_API_KEY,
         },
-        headers: {
-          // Axiosのデフォルト拒否を避けるために User-Agent を付与
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        },
-        timeout: 5000, // 5秒でタイムアウト設定
+        timeout: 5000,
       },
     );
 
-    if (response.data.items && response.data.items.length > 0) {
-      const book = response.data.items[0].volumeInfo;
-      let imageUrl = "";
-      let isbn = "";
+    const items = response.data.items || [];
 
-      if (book.imageLinks) {
-        imageUrl =
-          book.imageLinks.thumbnail || book.imageLinks.smallThumbnail || "";
-        if (imageUrl.startsWith("http://")) {
-          imageUrl = imageUrl.replace("http://", "https://");
-        }
-      }
-
-      if (book.industryIdentifiers) {
-        const isbnObj = book.industryIdentifiers.find(
-          (id) => id.type === "ISBN_13" || id.type === "ISBN_10",
-        );
-        if (isbnObj) isbn = isbnObj.identifier;
-      }
-
+    if (items.length === 0) {
       return {
-        author: book.authors ? book.authors.join(", ") : "",
-        publisher: book.publisher || "",
-        imageUrl: imageUrl,
-        isbn: isbn,
+        author: "",
+        publisher: "",
+        imageUrl: "",
+        isbn: "",
       };
     }
-  } catch (error) {
-    // 503エラーやタイムアウトが発生してもアプリを落とさずログだけ吐く
-    console.warn(
-      "Google Books API 取得失敗 (空データで続行します):",
-      error.message,
-    );
-  }
 
-  // エラー時または検索結果なしの場合は空文字列で返す
-  return { author: "", publisher: "", imageUrl: "", isbn: "" };
+    // タイトルが一番一致するものを探す
+    let target = items.find((item) => {
+      const title = item.volumeInfo.title || "";
+
+      return (
+        title.includes(comicName) &&
+        (title.includes(`${volume}`) ||
+          title.includes(`${volume}巻`) ||
+          title.includes(`第${volume}巻`))
+      );
+    });
+
+    // 見つからなければ漫画名だけ一致するもの
+    if (!target) {
+      target = items.find((item) => {
+        const title = item.volumeInfo.title || "";
+        return title.includes(comicName);
+      });
+    }
+
+    // それでも無ければ先頭
+    if (!target) {
+      target = items[0];
+    }
+
+    const book = target.volumeInfo;
+
+    let imageUrl = "";
+    let isbn = "";
+
+    if (book.imageLinks) {
+      imageUrl =
+        book.imageLinks.thumbnail || book.imageLinks.smallThumbnail || "";
+
+      imageUrl = imageUrl.replace("http://", "https://");
+    }
+
+    if (book.industryIdentifiers) {
+      const isbnObj = book.industryIdentifiers.find(
+        (id) => id.type === "ISBN_13" || id.type === "ISBN_10",
+      );
+
+      if (isbnObj) {
+        isbn = isbnObj.identifier;
+      }
+    }
+
+    return {
+      author: book.authors?.join(", ") || "",
+      publisher: book.publisher || "",
+      imageUrl,
+      isbn,
+    };
+  } catch (error) {
+    console.warn("Google Books APIエラー:", error.message);
+
+    return {
+      author: "",
+      publisher: "",
+      imageUrl: "",
+      isbn: "",
+    };
+  }
 }
 
 app.use((req, res, next) => {
@@ -269,12 +301,16 @@ app.get("/list", (req, res) => {
         LEFT JOIN (
           /* 各漫画の中で最小のvolume（1巻など）の画像を1つだけ取得するサブクエリ */
           SELECT cv1.comic_id, cv1.image_url
-          FROM comic_volumes cv1
-          WHERE cv1.volume = (
-            SELECT MIN(cv2.volume)
-            FROM comic_volumes cv2
-            WHERE cv2.comic_id = cv1.comic_id
-          )
+    FROM comic_volumes cv1
+    WHERE cv1.image_url IS NOT NULL
+      AND cv1.image_url <> ''
+      AND cv1.volume = (
+          SELECT MIN(cv2.volume)
+          FROM comic_volumes cv2
+          WHERE cv2.comic_id = cv1.comic_id
+            AND cv2.image_url IS NOT NULL
+            AND cv2.image_url <> ''
+      )
         ) v ON comics.id = v.comic_id
         WHERE group_members.user_id = ?
       `;
@@ -334,28 +370,63 @@ app.get("/comics/:id", async (req, res) => {
   const comicId = req.params.id;
 
   try {
-    // 1. 漫画の基本情報を取得
-    const [comics] = await connection
-      .promise()
-      .query("SELECT * FROM comics WHERE id = ?", [comicId]);
+    // 漫画情報取得（ユーザーが所属するグループの漫画のみ取得）
+    const [comics] = await connection.promise().query(
+      `
+      SELECT DISTINCT c.*
+      FROM comics c
+      JOIN comic_owning co
+        ON c.id = co.comic_id
+      JOIN group_members gm
+        ON co.group_id = gm.group_id
+      WHERE c.id = ?
+        AND gm.user_id = ?
+      `,
+      [comicId, req.session.userId],
+    );
 
     if (comics.length === 0) {
       return res.status(404).send("漫画が見つかりません");
     }
 
-    // 2. その漫画に紐づく所持済みの巻一覧を取得
+    // 所持巻一覧取得
     const [volumes] = await connection.promise().query(
-      `SELECT comic_volumes.*, comic_owning.price
-       FROM comic_volumes
-       JOIN comic_owning ON comic_volumes.comic_id = comic_owning.comic_id 
-                         AND comic_volumes.volume = comic_owning.volume
-       WHERE comic_volumes.comic_id = ?`,
-      [comicId],
+      `
+      SELECT
+          cv.volume,
+          cv.image_url,
+          cv.isbn,
+          co.price,
+          ug.group_name
+      FROM comic_volumes cv
+      JOIN comic_owning co
+        ON cv.comic_id = co.comic_id
+       AND cv.volume = co.volume
+      JOIN user_groups ug
+        ON co.group_id = ug.id
+      JOIN group_members gm
+        ON ug.id = gm.group_id
+      WHERE cv.comic_id = ?
+        AND gm.user_id = ?
+      ORDER BY cv.volume ASC
+      `,
+      [comicId, req.session.userId],
     );
+
+    // デフォルト画像設定
+    const defaultImage = "https://via.placeholder.com/150x200?text=No+Image";
+
+    const volumesWithImage = volumes.map((volume) => ({
+      ...volume,
+      image_url:
+        volume.image_url && volume.image_url.trim() !== ""
+          ? volume.image_url
+          : defaultImage,
+    }));
 
     res.render("detail.ejs", {
       comic: comics[0],
-      volumes: volumes,
+      volumes: volumesWithImage,
     });
   } catch (err) {
     console.error(err);

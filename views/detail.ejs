@@ -46,6 +46,7 @@
                 
                 <div class="volume-info">
                   <h4><%= volume.volume %>巻</h4>
+                  <p><strong>グループ：</strong><%= volume.group_name %></p>
                   
                   <% if (volume.price) { %>
                     <p class="price">購入価格: ¥<%= volume.price.toLocaleString() %></p>
