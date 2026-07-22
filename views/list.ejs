@@ -7,43 +7,49 @@
   </head>
   <body>
     <header>
-        <h1><a href="/home">Comic-app</a></h1>
+      <h1><a href="/home">Comic-app</a></h1>
     </header>
     <div class="container">
       <div class="panel">
         <form action="/list" method="get">
-  <label for="group">グループを選択:</label>
+          <label for="group">グループを選択:</label>
 
-  <select id="group" name="group_id">
-    <option value="">すべてのグループ</option>
-    <% groups.forEach(function(group) { %>
-      <option
-        value="<%= group.id %>"
-        <%= selectedGroupId == group.id ? "selected" : "" %>>
-        <%= group.group_name %>
-      </option>
-    <% }); %>
-  </select>
+          <select id="group" name="group_id">
+            <option value="">すべてのグループ</option>
+            <% groups.forEach(function(group) { %>
+              <option
+                value="<%= group.id %>"
+                <%= selectedGroupId == group.id ? "selected" : "" %>>
+                <%= group.group_name %>
+              </option>
+            <% }); %>
+          </select>
 
-  <input
-    type="text"
-    name="search"
-    value="<%= search %>"
-    placeholder="漫画を検索"
-  >
+          <input
+            type="text"
+            name="search"
+            value="<%= search %>"
+            placeholder="漫画を検索"
+          >
 
-  <input type="submit" value="検索">
-</form>
+          <input type="submit" value="検索">
+        </form>
         <a href="/add">漫画を追加 </a>
         <h2>漫画一覧</h2>
-        <ul>
+
+        <!-- 漫画リストを表示する部分 -->
+        <div class="comic-list">
           <% comics.forEach(comic => { %>
-  <div class="comic-card">
-    <img src="<%= comic.image_url %>" alt="<%= comic.comic_name %>" class="comic-cover" />
-    <h3><%= comic.comic_name %></h3>
-  </div>
-<% }) %>
-        </ul>
+            <div class="comic-card">
+              <!-- 画像とタイトルの両方にリンクを設置 -->
+              <a href="/comics/<%= comic.id %>" class="comic-link">
+                <img src="<%= comic.image_url %>" alt="<%= comic.comic_name %>" class="comic-cover" />
+                <h3><%= comic.comic_name %></h3>
+              </a>
+            </div>
+          <% }) %>
+        </div>
+
       </div>
       <a href="/home">ホームへ戻る</a>
       <footer>

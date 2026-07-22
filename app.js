@@ -325,6 +325,44 @@ app.get("/list", (req, res) => {
   );
 });
 
+// 例: 各漫画の巻一覧ページ (/comics/:id)
+app.get("/comics/:id", async (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.redirect("/login");
+  }
+
+  const comicId = req.params.id;
+
+  try {
+    // 1. 漫画の基本情報を取得
+    const [comics] = await connection
+      .promise()
+      .query("SELECT * FROM comics WHERE id = ?", [comicId]);
+
+    if (comics.length === 0) {
+      return res.status(404).send("漫画が見つかりません");
+    }
+
+    // 2. その漫画に紐づく所持済みの巻一覧を取得
+    const [volumes] = await connection.promise().query(
+      `SELECT comic_volumes.*, comic_owning.price
+       FROM comic_volumes
+       JOIN comic_owning ON comic_volumes.comic_id = comic_owning.comic_id 
+                         AND comic_volumes.volume = comic_owning.volume
+       WHERE comic_volumes.comic_id = ?`,
+      [comicId],
+    );
+
+    res.render("detail.ejs", {
+      comic: comics[0],
+      volumes: volumes,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("エラーが発生しました");
+  }
+});
+
 app.get("/add", (req, res) => {
   if (req.session.userId === undefined) {
     return res.redirect("/login");

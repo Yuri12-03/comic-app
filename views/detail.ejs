@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title><%= comic.comic_name %> - 詳細 | Comic-app</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1><a href="/home">Comic-app</a></h1>
+    </header>
+    <div class="container">
+      <div class="panel">
+        
+        <!-- 漫画の基本情報ヘッダー -->
+        <div class="comic-detail-header">
+          <h2><%= comic.comic_name %></h2>
+          <div class="comic-meta">
+            <p><strong>著者:</strong> <%= comic.author || "未設定" %></p>
+            <p><strong>出版社:</strong> <%= comic.publisher || "未設定" %></p>
+            <p><strong>登録されている最新巻:</strong> <%= comic.latest_volume %>巻</p>
+          </div>
+        </div>
+
+        <div class="actions">
+          <!-- 新規巻の追加ページへ移動するボタン -->
+          <a href="/add?comic_name=<%= encodeURIComponent(comic.comic_name) %>" class="btn-add">
+            新しい巻を追加する
+          </a>
+        </div>
+
+        <hr />
+
+        <h3>所持している巻一覧</h3>
+
+        <% if (volumes && volumes.length > 0) { %>
+          <div class="volume-grid">
+            <% volumes.forEach(volume => { %>
+              <div class="volume-card">
+                <!-- 表紙画像（存在しない場合はプレースホルダー） -->
+                <img 
+                  src="<%= volume.image_url && volume.image_url.trim() !== '' ? volume.image_url : 'https://via.placeholder.com/150x200?text=No+Image' %>" 
+                  alt="<%= comic.comic_name %> <%= volume.volume %>巻" 
+                  class="volume-cover" 
+                />
+                
+                <div class="volume-info">
+                  <h4><%= volume.volume %>巻</h4>
+                  
+                  <% if (volume.price) { %>
+                    <p class="price">購入価格: ¥<%= volume.price.toLocaleString() %></p>
+                  <% } %>
+                  
+                  <% if (volume.isbn) { %>
+                    <p class="isbn">ISBN: <%= volume.isbn %></p>
+                  <% } %>
+                </div>
+
+                <!-- 削除や編集ボタンを設置する場合の例 -->
+                <div class="volume-actions">
+                  <form action="/delete-volume" method="post" onsubmit="return confirm('本当に削除しますか？');">
+                    <input type="hidden" name="comic_id" value="<%= comic.id %>">
+                    <input type="hidden" name="volume" value="<%= volume.volume %>">
+                    <button type="submit" class="btn-delete">削除</button>
+                  </form>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <p class="no-data">所持している巻の情報がありません。</p>
+        <% } %>
+
+      </div>
+
+      <div class="navigation-links">
+        <a href="/list">漫画一覧へ戻る</a> | <a href="/home">ホームへ戻る</a>
+      </div>
+
+      <footer>
+        <p>&copy; 2023 Comic-app. All rights reserved.</p>
+      </footer>
+    </div>
+  </body>
+</html>
