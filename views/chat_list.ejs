@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>Comic-app</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    </head>
+    <header>
+        <h1><a href="/home">Comic-app</a></h1>
+        <a href="/logout" onclick="return confirm('ログアウトしますか？');">ログアウト</a>
+        <p>こんにちは、<%= username %>さん</p>
+    </header>  
+    <body>
+        <h2>グループ一覧</h2>
+        <ul>
+<% groups.forEach(group => { %>
+    <li>
+        <a href="/chat/<%= group.id %>">
+            <%= group.group_name %>
+        </a>
+    </li>
+<% }) %>
+</ul>
+
+<a href="/home">ホームへ戻る</a>
+
+    </body>
+</html>

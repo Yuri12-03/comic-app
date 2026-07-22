@@ -111,6 +111,8 @@ app.post("/signup", (req, res) => {
       console.error(err);
       return res.send(err);
     }
+
+    // ユーザー登録
     connection.query(
       "INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
       [username, email, hash],
@@ -118,11 +120,41 @@ app.post("/signup", (req, res) => {
         if (err) {
           console.error(err);
           return res.send(err);
-        } else {
-          req.session.userId = results.insertId;
-          req.session.username = username;
-          res.redirect("/home");
         }
+
+        const userId = results.insertId;
+
+        // 初期グループを作成
+        connection.query(
+          "INSERT INTO user_groups (group_name, owner_id) VALUES (?, ?)",
+          [`${username}のマイグループ`, userId],
+          (err, results) => {
+            if (err) {
+              console.error(err);
+              return res.send(err);
+            }
+
+            const groupId = results.insertId;
+
+            // 作成者をグループメンバーに追加
+            connection.query(
+              "INSERT INTO group_members (group_id, user_id) VALUES (?, ?)",
+              [groupId, userId],
+              (err) => {
+                if (err) {
+                  console.error(err);
+                  return res.send(err);
+                }
+
+                // ログイン状態にする
+                req.session.userId = userId;
+                req.session.username = username;
+
+                res.redirect("/home");
+              },
+            );
+          },
+        );
       },
     );
   });
@@ -141,39 +173,61 @@ app.get("/list", (req, res) => {
     return res.redirect("/login");
   }
 
+  const groupId = req.query.group_id || "";
+  const search = req.query.search || "";
+
+  // グループ一覧を取得
   connection.query(
-    `SELECT comic_name
-     FROM comics
-     JOIN comic_owning
-       ON comics.id = comic_owning.comic_id
-     WHERE comic_owning.group_id = ?`,
+    `SELECT user_groups.id, user_groups.group_name
+     FROM user_groups
+     JOIN group_members
+       ON user_groups.id = group_members.group_id
+     WHERE group_members.user_id = ?`,
     [req.session.userId],
-    (err, comics) => {
+    (err, groups) => {
       if (err) {
         console.error(err);
         return res.send(err);
       }
 
-      connection.query(
-        `SELECT user_groups.group_name, user_groups.id
-         FROM user_groups
-         JOIN group_members
-           ON user_groups.id = group_members.group_id
-         WHERE group_members.user_id = ?`,
-        [req.session.userId],
-        (err, groups) => {
-          if (err) {
-            console.error(err);
-            return res.send(err);
-          }
+      // 漫画一覧取得用SQL
+      let sql = `
+        SELECT DISTINCT comics.id, comics.comic_name
+        FROM comics
+        JOIN comic_owning
+          ON comics.id = comic_owning.comic_id
+        JOIN group_members
+          ON comic_owning.group_id = group_members.group_id
+        WHERE group_members.user_id = ?
+      `;
 
-          res.render("list.ejs", {
-            comics: comics,
-            groups: groups,
-            selectedGroupId: req.query.group_id || "",
-          });
-        },
-      );
+      const params = [req.session.userId];
+
+      // グループで絞り込み
+      if (groupId !== "") {
+        sql += " AND comic_owning.group_id = ?";
+        params.push(groupId);
+      }
+
+      // 漫画名で検索
+      if (search !== "") {
+        sql += " AND comics.comic_name LIKE ?";
+        params.push(`%${search}%`);
+      }
+
+      connection.query(sql, params, (err, comics) => {
+        if (err) {
+          console.error(err);
+          return res.send(err);
+        }
+
+        res.render("list.ejs", {
+          comics: comics,
+          groups: groups,
+          selectedGroupId: groupId,
+          search: search,
+        });
+      });
     },
   );
 });
@@ -182,7 +236,27 @@ app.get("/add", (req, res) => {
   if (req.session.userId === undefined) {
     return res.redirect("/login");
   }
-  res.render("add.ejs", { error: null });
+
+  connection.query(
+    `SELECT user_groups.id, user_groups.group_name
+     FROM user_groups
+     JOIN group_members
+       ON user_groups.id = group_members.group_id
+     WHERE group_members.user_id = ?`,
+    [req.session.userId],
+    (err, groups) => {
+      if (err) {
+        console.error(err);
+        return res.send(err);
+      }
+
+      res.render("add.ejs", {
+        username: req.session.username,
+        error: null,
+        groups: groups,
+      });
+    },
+  );
 });
 
 app.post("/add", (req, res) => {
@@ -194,35 +268,94 @@ app.post("/add", (req, res) => {
   const latest_volume = 1;
   const author = req.body.author || "";
   const publisher = req.body.publisher || "";
-
-  const price = req.body.price || 0;
   const volume = req.body.volume || 1;
+  const price = req.body.price || 0;
+  const groupId = req.body.group_id;
 
+  // comicsテーブルに漫画があるか確認
   connection.query(
-    "INSERT INTO comics (comic_name, latest_volume, author, publisher) VALUES (?, ?, ?, ?)",
-    [comicName, latest_volume, author, publisher],
+    "SELECT id FROM comics WHERE comic_name = ?",
+    [comicName],
     (err, results) => {
       if (err) {
         console.error(err);
         return res.send(err);
       }
 
-      const comicId = results.insertId;
+      if (results.length > 0) {
+        // 既に漫画が存在する
+        const comicId = results[0].id;
+        addComicToGroup(comicId);
+      } else {
+        // 漫画が存在しないので登録
+        connection.query(
+          "INSERT INTO comics (comic_name, latest_volume, author, publisher) VALUES (?, ?, ?, ?)",
+          [comicName, latest_volume, author, publisher],
+          (err, results) => {
+            if (err) {
+              console.error(err);
+              return res.send(err);
+            }
 
-      connection.query(
-        "INSERT INTO comic_owning (group_id, comic_id, volume, price) VALUES (?, ?, ?, ?)",
-        [req.session.userId, comicId, volume, price],
-        (err) => {
-          if (err) {
-            console.error(err);
-            return res.send(err);
-          }
-
-          res.redirect("/list");
-        },
-      );
+            const comicId = results.insertId;
+            addComicToGroup(comicId);
+          },
+        );
+      }
     },
   );
+
+  // comic_owningへ登録する処理
+  function addComicToGroup(comicId) {
+    // 同じグループに既に登録されているか確認
+    connection.query(
+      "SELECT id FROM comic_owning WHERE group_id = ? AND comic_id = ? AND volume = ?",
+      [groupId, comicId, volume],
+      (err, results) => {
+        if (err) {
+          console.error(err);
+          return res.send(err);
+        }
+
+        if (results.length > 0) {
+          return connection.query(
+            `SELECT user_groups.id, user_groups.group_name
+     FROM user_groups
+     JOIN group_members
+       ON user_groups.id = group_members.group_id
+     WHERE group_members.user_id = ?`,
+            [req.session.userId],
+            (err, groups) => {
+              if (err) {
+                console.error(err);
+                return res.send(err);
+              }
+
+              res.render("add.ejs", {
+                username: req.session.username,
+                error: "同じグループに同じ漫画の同じ巻が既に登録されています。",
+                groups: groups,
+              });
+            },
+          );
+        }
+
+        // 登録されていなければ追加
+        connection.query(
+          "INSERT INTO comic_owning (group_id, comic_id, volume, price) VALUES (?, ?, ?, ?)",
+          [groupId, comicId, volume, price],
+          (err) => {
+            if (err) {
+              console.error(err);
+              return res.send(err);
+            }
+
+            res.redirect("/list");
+          },
+        );
+      },
+    );
+  }
 });
 
 app.get("/create_group", (req, res) => {
@@ -309,6 +442,75 @@ app.get("/show_groups", (req, res) => {
     [req.session.userId],
     (err, results) => {
       res.render("show_groups.ejs", { error: null, groups: results });
+    },
+  );
+});
+
+app.get("/chat", (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.redirect("/login");
+  }
+  connection.query(
+    "SELECT user_groups.id, user_groups.group_name FROM user_groups JOIN group_members ON user_groups.id = group_members.group_id WHERE group_members.user_id = ?",
+    [req.session.userId],
+    (err, results) => {
+      if (err) {
+        console.error(err);
+        return res.send(err);
+      }
+      res.render("chat_list.ejs", { error: null, groups: results });
+    },
+  );
+});
+
+app.get("/chat/:groupId", (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.redirect("/login");
+  }
+  const groupId = req.params.groupId;
+  connection.query(
+    "SELECT group_chat.message, group_chat.created_at, users.username FROM group_chat JOIN users ON group_chat.sender_id = users.id WHERE group_chat.group_id = ? ORDER BY group_chat.created_at ASC",
+    [groupId],
+    (err, results) => {
+      if (err) {
+        console.error(err);
+        return res.send(err);
+      }
+      connection.query(
+        "SELECT group_name FROM user_groups WHERE id = ?",
+        [groupId],
+        (err, groupResults) => {
+          if (err) {
+            console.error(err);
+            return res.send(err);
+          }
+          res.render("chat.ejs", {
+            error: null,
+            messages: results,
+            groupId: groupId,
+            groupName: groupResults[0].group_name,
+          });
+        },
+      );
+    },
+  );
+});
+
+app.post("/chat/:groupId", (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.redirect("/login");
+  }
+  const groupId = req.params.groupId;
+  const message = req.body.message;
+  connection.query(
+    "INSERT INTO group_chat (group_id, sender_id, message) VALUES (?, ?, ?)",
+    [groupId, req.session.userId, message],
+    (err) => {
+      if (err) {
+        console.error(err);
+        return res.send(err);
+      }
+      res.redirect(`/chat/${groupId}`);
     },
   );
 });
