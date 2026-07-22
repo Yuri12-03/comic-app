@@ -289,12 +289,16 @@ app.post("/add", async (req, res) => {
       // 楽天API検索
       console.log("APP_ID:", process.env.RAKUTEN_APP_ID);
       console.log("ACCESS_KEY:", process.env.RAKUTEN_ACCESS_KEY);
+      console.log({
+        accessKey: process.env.RAKUTEN_ACCESS_KEY,
+        referer: "https://comic-app-yxqd.onrender.com",
+      });
       const response = await axios.get(
         "https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404",
         {
           headers: {
             accessKey: process.env.RAKUTEN_ACCESS_KEY,
-            Referer: "https://comic-app-yxqd.onrender.com/",
+            referer: "https://comic-app-yxqd.onrender.com/",
           },
           params: {
             applicationId: process.env.RAKUTEN_APP_ID,
@@ -360,7 +364,7 @@ app.post("/add", async (req, res) => {
         {
           headers: {
             accessKey: process.env.RAKUTEN_ACCESS_KEY,
-            Referer: "https://comic-app-yxqd.onrender.com/",
+            referer: "https://comic-app-yxqd.onrender.com/",
           },
           params: {
             applicationId: process.env.RAKUTEN_APP_ID,
