@@ -297,10 +297,11 @@ app.post("/add", async (req, res) => {
         "https://openapi.rakuten.co.jp/services/api/BooksTotal/Search/20170404",
         {
           params: {
+            format: "json",
+            keyword: `${comicName} ${volume}`,
+            booksGenreId: "000",
             applicationId: process.env.RAKUTEN_APP_ID,
             accessKey: process.env.RAKUTEN_ACCESS_KEY,
-            title: `${comicName} ${volume}巻`,
-            format: "json",
           },
         },
       );
@@ -363,7 +364,8 @@ app.post("/add", async (req, res) => {
           params: {
             applicationId: process.env.RAKUTEN_APP_ID,
             accessKey: process.env.RAKUTEN_ACCESS_KEY,
-            title: `${comicName} ${volume}巻`,
+            keyword: `${comicName} ${volume}`,
+            booksGenreId: "000",
             format: "json",
           },
         },
