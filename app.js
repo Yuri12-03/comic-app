@@ -357,9 +357,9 @@ app.post("/add", async (req, res) => {
       comicId = insertComic.insertId;
 
       await connection.promise().query(
-        `INSERT INTO comic_volumes (comic_id, volume, isbn, image_url)
-         VALUES (?, ?, ?, ?)`,
-        [comicId, volume, bookInfo.isbn, bookInfo.imageUrl],
+        `INSERT INTO comic_volumes (comic_id, volume, image_url)
+         VALUES (?, ?, ?)`,
+        [comicId, volume, bookInfo.imageUrl],
       );
     }
 
@@ -375,9 +375,9 @@ app.post("/add", async (req, res) => {
       const bookInfo = await fetchBookFromGoogle(comicName, volume);
 
       await connection.promise().query(
-        `INSERT INTO comic_volumes (comic_id, volume, isbn, image_url)
-         VALUES (?, ?, ?, ?)`,
-        [comicId, volume, bookInfo.isbn, bookInfo.imageUrl],
+        `INSERT INTO comic_volumes (comic_id, volume, image_url)
+         VALUES (?, ?, ?)`,
+        [comicId, volume, bookInfo.imageUrl],
       );
     }
 
