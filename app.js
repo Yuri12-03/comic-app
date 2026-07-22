@@ -1082,13 +1082,17 @@ app.get("/chat", (req, res) => {
   );
 });
 
+app.get("/chat_list", (req, res) => {
+  return res.redirect("/chat");
+});
+
 app.get("/chat/:groupId", (req, res) => {
   if (req.session.userId === undefined) {
     return res.redirect("/login");
   }
   const groupId = req.params.groupId;
   connection.query(
-    "SELECT group_chat.message, group_chat.created_at, users.username FROM group_chat JOIN users ON group_chat.sender_id = users.id WHERE group_chat.group_id = ? ORDER BY group_chat.created_at ASC",
+    "SELECT group_chat.message, group_chat.created_at, group_chat.sender_id, users.username FROM group_chat JOIN users ON group_chat.sender_id = users.id WHERE group_chat.group_id = ? ORDER BY group_chat.created_at ASC",
     [groupId],
     (err, results) => {
       if (err) {
@@ -1108,6 +1112,7 @@ app.get("/chat/:groupId", (req, res) => {
             messages: results,
             groupId: groupId,
             groupName: groupResults[0].group_name,
+            currentUserId: req.session.userId,
           });
         },
       );

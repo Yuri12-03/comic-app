@@ -171,11 +171,21 @@ input[type="submit"]:hover {
 .chat-message {
   display: inline-block;
   max-width: 78%;
-  align-self: flex-start;
   background: white;
   border-radius: 16px 16px 16px 6px;
   padding: 10px 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.chat-message.other-message {
+  align-self: flex-start;
+  border-radius: 16px 16px 16px 6px;
+}
+
+.chat-message.own-message {
+  align-self: flex-end;
+  background: #d9fdd3;
+  border-radius: 16px 16px 6px 16px;
 }
 
 .chat-message strong {

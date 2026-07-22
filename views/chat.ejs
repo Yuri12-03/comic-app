@@ -23,7 +23,7 @@
 
           <div id="chat-messages">
             <% messages.forEach(message => { %>
-              <div class="chat-message">
+              <div class="chat-message <%= message.sender_id === currentUserId ? 'own-message' : 'other-message' %>">
                 <strong><%= message.username %>:</strong>
                 <span><%= message.message %></span>
               </div>
