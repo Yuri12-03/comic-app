@@ -292,7 +292,9 @@ app.post("/add", async (req, res) => {
         {
           params: {
             applicationId: process.env.RAKUTEN_APP_ID,
+            accessKey: process.env.RAKUTEN_ACCESS_KEY,
             title: `${comicName} ${volume}巻`,
+            format: "json",
           },
         },
       );
@@ -352,7 +354,9 @@ app.post("/add", async (req, res) => {
         {
           params: {
             applicationId: process.env.RAKUTEN_APP_ID,
+            accessKey: process.env.RAKUTEN_ACCESS_KEY,
             title: `${comicName} ${volume}巻`,
+            format: "json",
           },
         },
       );
@@ -421,8 +425,8 @@ app.post("/add", async (req, res) => {
 
     res.redirect("/list");
   } catch (err) {
-    console.error(err);
-    res.send(err);
+    console.error(err.response.data);
+    res.send(err.response.data);
   }
 });
 
