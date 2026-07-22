@@ -292,7 +292,7 @@ app.post("/add", async (req, res) => {
         {
           params: {
             applicationId: process.env.RAKUTEN_APP_ID,
-            title: comicName,
+            title: `${comicName} ${volume}巻`,
           },
         },
       );
