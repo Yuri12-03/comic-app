@@ -277,22 +277,16 @@ app.post("/add", async (req, res) => {
   try {
     let comicId;
 
-    // comicsに存在するか確認
+    // 1. comicsテーブルに存在するか確認
     const [comicResults] = await connection
       .promise()
       .query("SELECT id FROM comics WHERE comic_name = ?", [comicName]);
 
     if (comicResults.length > 0) {
-      // 既存漫画
+      // 既存漫画の場合
       comicId = comicResults[0].id;
     } else {
-      // 楽天API検索
-      console.log("APP_ID:", process.env.RAKUTEN_APP_ID);
-      console.log("ACCESS_KEY:", process.env.RAKUTEN_ACCESS_KEY);
-      console.log({
-        accessKey: process.env.RAKUTEN_ACCESS_KEY,
-        referer: "comic-app-yxqd.onrender.com",
-      });
+      // 2. 漫画が存在しない場合：Google Books APIで情報取得
       const response = await axios.get(
         "https://www.googleapis.com/books/v1/volumes",
         {
@@ -310,53 +304,64 @@ app.post("/add", async (req, res) => {
       let imageUrl = "";
       let isbn = "";
 
-      if (response.data.Items.length > 0) {
-        const book = response.data.Items[0].Item;
+      // Google Books API のレスポンス解析
+      if (response.data.items && response.data.items.length > 0) {
+        const book = response.data.items[0].volumeInfo;
 
-        author = book.author || "";
-        publisher = book.publisherName || "";
-        imageUrl = book.largeImageUrl || "";
-        isbn = book.isbn || "";
+        author = book.authors ? book.authors.join(", ") : "";
+        publisher = book.publisher || "";
+
+        // 画像URL（HTTPS対応とフォールバック）
+        if (book.imageLinks) {
+          imageUrl =
+            book.imageLinks.thumbnail || book.imageLinks.smallThumbnail || "";
+          if (imageUrl.startsWith("http://")) {
+            imageUrl = imageUrl.replace("http://", "https://");
+          }
+        }
+
+        // ISBN13の抽出
+        if (book.industryIdentifiers) {
+          const isbnObj = book.industryIdentifiers.find(
+            (id) => id.type === "ISBN_13" || id.type === "ISBN_10",
+          );
+          if (isbnObj) isbn = isbnObj.identifier;
+        }
       }
 
-      // comics追加
+      // comicsへ追加
       const [insertComic] = await connection.promise().query(
         `
-          INSERT INTO comics
-          (comic_name, latest_volume, author, publisher)
-          VALUES (?, ?, ?, ?)
-          `,
+        INSERT INTO comics (comic_name, latest_volume, author, publisher)
+        VALUES (?, ?, ?, ?)
+        `,
         [comicName, volume, author, publisher],
       );
 
       comicId = insertComic.insertId;
 
-      // comic_volumes追加
+      // 初回の巻情報（comic_volumes）も一緒に追加
       await connection.promise().query(
         `
-          INSERT INTO comic_volumes
-          (comic_id, volume, isbn, image_url)
-          VALUES (?, ?, ?, ?)
-          `,
+        INSERT INTO comic_volumes (comic_id, volume, isbn, image_url)
+        VALUES (?, ?, ?, ?)
+        `,
         [comicId, volume, isbn, imageUrl],
       );
     }
 
-    // 巻情報が存在するか確認
+    // 3. 巻情報（comic_volumes）が存在するか確認
     const [volumeResults] = await connection.promise().query(
       `
-        SELECT id
-        FROM comic_volumes
-        WHERE comic_id = ?
-        AND volume = ?
-        `,
+      SELECT id
+      FROM comic_volumes
+      WHERE comic_id = ? AND volume = ?
+      `,
       [comicId, volume],
     );
 
-    // 巻情報がない場合追加
+    // 漫画本体はDBにあったが、指定された巻の情報がまだない場合
     if (volumeResults.length === 0) {
-      console.log("APP_ID:", process.env.RAKUTEN_APP_ID);
-      console.log("ACCESS_KEY:", process.env.RAKUTEN_ACCESS_KEY);
       const response = await axios.get(
         "https://www.googleapis.com/books/v1/volumes",
         {
@@ -372,45 +377,52 @@ app.post("/add", async (req, res) => {
       let isbn = "";
       let imageUrl = "";
 
-      if (response.data.Items.length > 0) {
-        const book = response.data.Items[0].Item;
+      if (response.data.items && response.data.items.length > 0) {
+        const book = response.data.items[0].volumeInfo;
 
-        isbn = book.isbn || "";
-        imageUrl = book.largeImageUrl || "";
+        if (book.imageLinks) {
+          imageUrl =
+            book.imageLinks.thumbnail || book.imageLinks.smallThumbnail || "";
+          if (imageUrl.startsWith("http://")) {
+            imageUrl = imageUrl.replace("http://", "https://");
+          }
+        }
+
+        if (book.industryIdentifiers) {
+          const isbnObj = book.industryIdentifiers.find(
+            (id) => id.type === "ISBN_13" || id.type === "ISBN_10",
+          );
+          if (isbnObj) isbn = isbnObj.identifier;
+        }
       }
 
       await connection.promise().query(
         `
-          INSERT INTO comic_volumes
-          (comic_id, volume, isbn, image_url)
-          VALUES (?, ?, ?, ?)
-          `,
+        INSERT INTO comic_volumes (comic_id, volume, isbn, image_url)
+        VALUES (?, ?, ?, ?)
+        `,
         [comicId, volume, isbn, imageUrl],
       );
     }
 
-    // comic_owning重複確認
+    // 4. 所持情報（comic_owning）の重複確認
     const [owningResults] = await connection.promise().query(
       `
-        SELECT id
-        FROM comic_owning
-        WHERE group_id = ?
-        AND comic_id = ?
-        AND volume = ?
-        `,
+      SELECT id
+      FROM comic_owning
+      WHERE group_id = ? AND comic_id = ? AND volume = ?
+      `,
       [groupId, comicId, volume],
     );
 
     if (owningResults.length > 0) {
       const [groups] = await connection.promise().query(
         `
-          SELECT user_groups.id,
-                 user_groups.group_name
-          FROM user_groups
-          JOIN group_members
-          ON user_groups.id = group_members.group_id
-          WHERE group_members.user_id = ?
-          `,
+        SELECT user_groups.id, user_groups.group_name
+        FROM user_groups
+        JOIN group_members ON user_groups.id = group_members.group_id
+        WHERE group_members.user_id = ?
+        `,
         [req.session.userId],
       );
 
@@ -421,36 +433,26 @@ app.post("/add", async (req, res) => {
       });
     }
 
-    // 所持情報追加
+    // 5. 所持情報を追加
     await connection.promise().query(
       `
-        INSERT INTO comic_owning
-        (group_id, comic_id, volume, price)
-        VALUES (?, ?, ?, ?)
-        `,
+      INSERT INTO comic_owning (group_id, comic_id, volume, price)
+      VALUES (?, ?, ?, ?)
+      `,
       [groupId, comicId, volume, price],
     );
 
     res.redirect("/list");
   } catch (err) {
-    console.error("エラー発生");
+    console.error("エラー発生:", err);
 
     if (err.response) {
       console.error("status:", err.response.status);
       console.error("data:", err.response.data);
-
-      return res.send(err.response.data);
+      return res.status(500).send("APIとの通信でエラーが発生しました。");
     }
 
-    if (err.request) {
-      console.error("レスポンスなし:");
-      console.error(err.request);
-
-      return res.send("楽天APIから応答がありません");
-    }
-
-    console.error(err.message);
-    return res.send(err.message);
+    return res.status(500).send(err.message);
   }
 });
 
