@@ -37,9 +37,12 @@
         <a href="/add">漫画を追加 </a>
         <h2>漫画一覧</h2>
         <ul>
-          <% comics.forEach(function(comic) { %>
-            <li><%= comic.comic_name %></li>
-          <% }); %>
+          <% comics.forEach(comic => { %>
+  <div class="comic-card">
+    <img src="<%= comic.image_url %>" alt="<%= comic.comic_name %>" class="comic-cover" />
+    <h3><%= comic.comic_name %></h3>
+  </div>
+<% }) %>
         </ul>
       </div>
       <a href="/home">ホームへ戻る</a>

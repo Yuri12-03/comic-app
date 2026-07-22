@@ -241,7 +241,7 @@ app.get("/list", (req, res) => {
   const groupId = req.query.group_id || "";
   const search = req.query.search || "";
 
-  // グループ一覧を取得
+  // 1. グループ一覧を取得
   connection.query(
     `SELECT user_groups.id, user_groups.group_name
      FROM user_groups
@@ -255,14 +255,27 @@ app.get("/list", (req, res) => {
         return res.send(err);
       }
 
-      // 漫画一覧取得用SQL
+      // 2. 漫画一覧 ＆ 表紙画像取得用SQL（1番若い巻の画像を優先取得）
       let sql = `
-        SELECT DISTINCT comics.id, comics.comic_name
+        SELECT DISTINCT 
+          comics.id, 
+          comics.comic_name,
+          v.image_url
         FROM comics
         JOIN comic_owning
           ON comics.id = comic_owning.comic_id
         JOIN group_members
           ON comic_owning.group_id = group_members.group_id
+        LEFT JOIN (
+          /* 各漫画の中で最小のvolume（1巻など）の画像を1つだけ取得するサブクエリ */
+          SELECT cv1.comic_id, cv1.image_url
+          FROM comic_volumes cv1
+          WHERE cv1.volume = (
+            SELECT MIN(cv2.volume)
+            FROM comic_volumes cv2
+            WHERE cv2.comic_id = cv1.comic_id
+          )
+        ) v ON comics.id = v.comic_id
         WHERE group_members.user_id = ?
       `;
 
@@ -286,8 +299,23 @@ app.get("/list", (req, res) => {
           return res.send(err);
         }
 
+        // デフォルト画像の表示設定
+        const defaultImage =
+          "https://via.placeholder.com/150x200?text=No+Image";
+
+        // 各コミックの image_url が空（nullまたは""）の場合、デフォルト画像に差し替える
+        const comicsWithImage = comics.map((comic) => {
+          return {
+            ...comic,
+            image_url:
+              comic.image_url && comic.image_url.trim() !== ""
+                ? comic.image_url
+                : defaultImage,
+          };
+        });
+
         res.render("list.ejs", {
-          comics: comics,
+          comics: comicsWithImage,
           groups: groups,
           selectedGroupId: groupId,
           search: search,
