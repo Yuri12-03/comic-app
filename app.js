@@ -182,6 +182,19 @@ async function ensureVolumeImageUrl(comicId, comicName, volume) {
   return "";
 }
 
+async function createNotification(userId, message) {
+  if (!userId || !message) {
+    return;
+  }
+
+  await connection
+    .promise()
+    .query(`INSERT INTO notifications (user_id, message) VALUES (?, ?)`, [
+      userId,
+      message,
+    ]);
+}
+
 app.use((req, res, next) => {
   if (req.session.userId === undefined) {
     res.locals.username = "ゲスト";
@@ -310,11 +323,28 @@ app.post("/signup", (req, res) => {
   });
 });
 
-app.get("/home", (req, res) => {
+app.get("/home", async (req, res) => {
   if (req.session.userId === undefined) {
-    res.redirect("/login");
-  } else {
-    res.render("home.ejs");
+    return res.redirect("/login");
+  }
+
+  try {
+    const [notifications] = await connection.promise().query(
+      `SELECT message, created_at
+       FROM notifications
+       WHERE user_id = ?
+       ORDER BY created_at DESC, id DESC
+       LIMIT 10`,
+      [req.session.userId],
+    );
+
+    res.render("home.ejs", {
+      username: req.session.username,
+      notifications,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("通知の取得に失敗しました");
   }
 });
 
@@ -414,6 +444,11 @@ app.post("/return/:lendingId", async (req, res) => {
        SET status = 'returned', returned_at = CURRENT_TIMESTAMP
        WHERE id = ? AND borrower_id = ? AND status = 'lending'`,
       [lendingId, req.session.userId],
+    );
+
+    await createNotification(
+      req.session.userId,
+      `返却を完了しました。貸し出し記録を更新しました。`,
     );
 
     res.redirect("/borrowed");
@@ -765,10 +800,60 @@ app.post("/add", async (req, res) => {
       [groupId, comicId, volume, price],
     );
 
+    const [groupMembers] = await connection
+      .promise()
+      .query(`SELECT user_id FROM group_members WHERE group_id = ?`, [groupId]);
+
+    await Promise.all(
+      groupMembers.map((member) =>
+        createNotification(
+          member.user_id,
+          `グループに新しい漫画「${comicName}」の${volume}巻が追加されました。`,
+        ),
+      ),
+    );
+
     res.redirect("/list");
   } catch (err) {
     console.error("データベースまたは処理エラー:", err);
     return res.status(500).send("エラーが発生しました: " + err.message);
+  }
+});
+
+app.post("/delete-volume", async (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.redirect("/login");
+  }
+
+  const comicId = Number(req.body.comic_id);
+  const volume = Number(req.body.volume);
+
+  if (Number.isNaN(comicId) || Number.isNaN(volume)) {
+    return res.status(400).send("不正な削除リクエストです");
+  }
+
+  try {
+    const [owningRows] = await connection
+      .promise()
+      .query(`SELECT id FROM comic_owning WHERE comic_id = ? AND volume = ?`, [
+        comicId,
+        volume,
+      ]);
+
+    if (owningRows.length === 0) {
+      return res.status(404).send("削除対象が見つかりません");
+    }
+
+    const owningId = owningRows[0].id;
+
+    await connection
+      .promise()
+      .query(`DELETE FROM comic_owning WHERE id = ?`, [owningId]);
+
+    res.redirect(`/comics/${comicId}`);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("巻の削除に失敗しました");
   }
 });
 
@@ -836,9 +921,19 @@ app.post("/lend/:owningId", async (req, res) => {
       .query(`SELECT id FROM users WHERE email = ?`, [borrowerEmail]);
 
     if (userRows.length === 0) {
-      return res
-        .status(404)
-        .send("指定されたメールアドレスのユーザーが見つかりません");
+      const [owningRows] = await connection.promise().query(
+        `SELECT co.id, co.group_id, co.comic_id, co.volume, co.price, c.comic_name
+         FROM comic_owning co
+         JOIN comics c ON co.comic_id = c.id
+         WHERE co.id = ?`,
+        [owningId],
+      );
+
+      return res.render("lending.ejs", {
+        username: req.session.username,
+        owning: owningRows[0],
+        error: "指定されたメールアドレスのユーザーが見つかりません",
+      });
     }
 
     const borrowerId = userRows[0].id;
@@ -854,6 +949,15 @@ app.post("/lend/:owningId", async (req, res) => {
         req.session.userId,
         dueDate.toISOString().slice(0, 10),
       ],
+    );
+
+    await createNotification(
+      borrowerId,
+      `貸し出しを受け取りました。返却期限は ${dueDate.toISOString().slice(0, 10)} です。`,
+    );
+    await createNotification(
+      req.session.userId,
+      `本を貸し出しました。借り手のユーザーIDは ${borrowerId} です。`,
     );
 
     res.redirect(`/comics/${req.body.comic_id}`);
@@ -922,11 +1026,16 @@ app.post("/create_group", (req, res) => {
               connection.query(
                 "INSERT INTO group_members (group_id, user_id) VALUES (?, ?)",
                 [groupId, userId],
-                (err) => {
+                async (err) => {
                   if (err) {
                     console.error(err);
                     return res.send(err);
                   }
+
+                  await createNotification(
+                    userId,
+                    `新しいグループに追加されました。グループID: ${groupId}`,
+                  );
                 },
               );
             }

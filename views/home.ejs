@@ -24,8 +24,19 @@
         <a href="/chat">チャットルームへ</a>
       </div>
       <div class="info">
-        <h2>お知らせ</h2>
-        <p>現在、特にお知らせはありません。</p>
+        <h2>通知</h2>
+        <% if (notifications && notifications.length > 0) { %>
+          <ul>
+            <% notifications.forEach(function(item) { %>
+              <li>
+                <div><%= item.message %></div>
+                <small><%= new Date(item.created_at).toLocaleString('ja-JP') %></small>
+              </li>
+            <% }); %>
+          </ul>
+        <% } else { %>
+          <p>通知はありません。</p>
+        <% } %>
       </div>
     </div>
     <footer>
