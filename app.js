@@ -294,6 +294,7 @@ app.post("/add", async (req, res) => {
         {
           headers: {
             accessKey: process.env.RAKUTEN_ACCESS_KEY,
+            Referer: "https://comic-app-yxqd.onrender.com/",
           },
           params: {
             applicationId: process.env.RAKUTEN_APP_ID,
@@ -359,6 +360,7 @@ app.post("/add", async (req, res) => {
         {
           headers: {
             accessKey: process.env.RAKUTEN_ACCESS_KEY,
+            Referer: "https://comic-app-yxqd.onrender.com/",
           },
           params: {
             applicationId: process.env.RAKUTEN_APP_ID,
