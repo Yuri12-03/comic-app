@@ -1,25 +1,49 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comic-app</title>
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= groupName %> | Comic-app</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
     <header>
-        <h1><a href="/home">Comic-app</a></h1>
-        <a href="/logout" onclick="return confirm('ログアウトしますか？');">ログアウト</a>
-        <p>こんにちは、<%= username %>さん</p>
+      <h1><a href="/home">Comic-app</a></h1>
+      <a href="/logout" onclick="return confirm('ログアウトしますか？');">ログアウト</a>
+      <p>こんにちは、<%= username %>さん</p>
     </header>
-<body>
-    <h2><%= groupName %></h2>
-    <div id="chat-messages">
-        <% messages.forEach(message => { %>
-            <p><strong><%= message.username %>:</strong> <%= message.message %></p>
-        <% }) %>
+
+    <div class="container">
+      <div class="panel">
+        <div class="chat-shell">
+          <div class="chat-header">
+            <h2><%= groupName %></h2>
+            <a href="/chat_list" class="btn-add">グループ一覧へ</a>
+          </div>
+
+          <div id="chat-messages">
+            <% messages.forEach(message => { %>
+              <div class="chat-message">
+                <strong><%= message.username %>:</strong>
+                <span><%= message.message %></span>
+              </div>
+            <% }) %>
+          </div>
+
+          <form id="chat-form" class="chat-form" action="/chat/<%= groupId %>" method="post">
+            <input type="text" name="message" placeholder="メッセージを入力" required />
+            <button type="submit">送信</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="navigation-links">
+        <a href="/home">ホームへ戻る</a>
+      </div>
     </div>
-    <form id="chat-form" action="/chat/<%= groupId %>" method="post">
-        <input type="text" name="message" placeholder="メッセージを入力" required />
-        <button type="submit">送信</button>
-    </form>
-</body>
+
+    <footer>
+      <p>&copy; 2023 Comic-app. All rights reserved.</p>
+    </footer>
+  </body>
+</html>

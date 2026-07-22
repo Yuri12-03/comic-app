@@ -1,28 +1,38 @@
 <!DOCTYPE html>
-<html>
-<head>
+<html lang="ja">
+  <head>
     <meta charset="UTF-8" />
     <title>Comic-app</title>
     <link rel="stylesheet" href="/css/style.css" />
-    </head>
+  </head>
+  <body>
     <header>
-        <h1><a href="/home">Comic-app</a></h1>
-        <a href="/logout" onclick="return confirm('ログアウトしますか？');">ログアウト</a>
-        <p>こんにちは、<%= username %>さん</p>
-    </header>  
-    <body>
+      <h1><a href="/home">Comic-app</a></h1>
+      <a href="/logout" onclick="return confirm('ログアウトしますか？');">ログアウト</a>
+      <p>こんにちは、<%= username %>さん</p>
+    </header>
+
+    <div class="container">
+      <div class="panel">
         <h2>グループ一覧</h2>
-        <ul>
-<% groups.forEach(group => { %>
-    <li>
-        <a href="/chat/<%= group.id %>">
-            <%= group.group_name %>
-        </a>
-    </li>
-<% }) %>
-</ul>
+        <ul class="chat-list">
+          <% groups.forEach(group => { %>
+            <li>
+              <a href="/chat/<%= group.id %>">
+                <%= group.group_name %>
+              </a>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
 
-<a href="/home">ホームへ戻る</a>
+      <div class="navigation-links">
+        <a href="/home">ホームへ戻る</a>
+      </div>
+    </div>
 
-    </body>
+    <footer>
+      <p>&copy; 2023 Comic-app. All rights reserved.</p>
+    </footer>
+  </body>
 </html>
