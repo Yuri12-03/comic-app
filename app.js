@@ -4,6 +4,7 @@ const app = express();
 const mysql = require("mysql2");
 const session = require("express-session");
 const bcrypt = require("bcrypt");
+const axios = require("axios");
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
@@ -17,7 +18,7 @@ app.use(
   }),
 );
 
-const connection = mysql.createConnection({
+const connection = mysql.createPool({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
   user: process.env.DB_USER,
@@ -268,102 +269,154 @@ app.get("/add", (req, res) => {
   );
 });
 
-app.post("/add", (req, res) => {
+app.post("/add", async (req, res) => {
   if (req.session.userId === undefined) {
     return res.redirect("/login");
   }
 
   const comicName = req.body.comic_name;
-  const latest_volume = 1;
-  const author = req.body.author || "";
-  const publisher = req.body.publisher || "";
-  const volume = req.body.volume || 1;
-  const price = req.body.price || 0;
+  const volume = Number(req.body.volume) || 1;
+  const price = Number(req.body.price) || 0;
   const groupId = req.body.group_id;
 
-  // comicsテーブルに漫画があるか確認
-  connection.query(
-    "SELECT id FROM comics WHERE comic_name = ?",
-    [comicName],
-    (err, results) => {
-      if (err) {
-        console.error(err);
-        return res.send(err);
-      }
+  // MySQL2のpromiseインスタンスを取得
+  const db = connection.promise();
 
-      if (results.length > 0) {
-        // 既に漫画が存在する
-        const comicId = results[0].id;
-        addComicToGroup(comicId);
-      } else {
-        // 漫画が存在しないので登録
-        connection.query(
-          "INSERT INTO comics (comic_name, latest_volume, author, publisher) VALUES (?, ?, ?, ?)",
-          [comicName, latest_volume, author, publisher],
-          (err, results) => {
-            if (err) {
-              console.error(err);
-              return res.send(err);
-            }
+  try {
+    // トランザクション開始
+    await db.beginTransaction();
 
-            const comicId = results.insertId;
-            addComicToGroup(comicId);
-          },
-        );
-      }
-    },
-  );
+    let comicId;
 
-  // comic_owningへ登録する処理
-  function addComicToGroup(comicId) {
-    // 同じグループに既に登録されているか確認
-    connection.query(
-      "SELECT id FROM comic_owning WHERE group_id = ? AND comic_id = ? AND volume = ?",
-      [groupId, comicId, volume],
-      (err, results) => {
-        if (err) {
-          console.error(err);
-          return res.send(err);
-        }
-
-        if (results.length > 0) {
-          return connection.query(
-            `SELECT user_groups.id, user_groups.group_name
-     FROM user_groups
-     JOIN group_members
-       ON user_groups.id = group_members.group_id
-     WHERE group_members.user_id = ?`,
-            [req.session.userId],
-            (err, groups) => {
-              if (err) {
-                console.error(err);
-                return res.send(err);
-              }
-
-              res.render("add.ejs", {
-                username: req.session.username,
-                error: "同じグループに同じ漫画の同じ巻が既に登録されています。",
-                groups: groups,
-              });
-            },
-          );
-        }
-
-        // 登録されていなければ追加
-        connection.query(
-          "INSERT INTO comic_owning (group_id, comic_id, volume, price) VALUES (?, ?, ?, ?)",
-          [groupId, comicId, volume, price],
-          (err) => {
-            if (err) {
-              console.error(err);
-              return res.send(err);
-            }
-
-            res.redirect("/list");
-          },
-        );
-      },
+    // 1. comicsに存在するか確認
+    const [comicResults] = await db.query(
+      "SELECT id FROM comics WHERE comic_name = ?",
+      [comicName],
     );
+
+    if (comicResults.length > 0) {
+      comicId = comicResults[0].id;
+    } else {
+      // 新規漫画の場合：API検索（巻数も含めて検索精度を向上）
+      let author = "";
+      let publisher = "";
+
+      try {
+        const response = await axios.get(
+          "https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404",
+          {
+            params: {
+              applicationId: process.env.RAKUTEN_APP_ID,
+              title: `${comicName} ${volume}巻`,
+            },
+            timeout: 3000, // 3秒でタイムアウト設定
+          },
+        );
+
+        if (response.data.Items && response.data.Items.length > 0) {
+          const book = response.data.Items[0].Item;
+          author = book.author || "";
+          publisher = book.publisherName || "";
+        }
+      } catch (apiErr) {
+        console.warn("楽天API取得失敗（comics新規作成時）:", apiErr.message);
+        // APIが失敗してもDB登録は続行する
+      }
+
+      // comics追加
+      const [insertComic] = await db.query(
+        `INSERT INTO comics (comic_name, latest_volume, author, publisher)
+         VALUES (?, ?, ?, ?)`,
+        [comicName, volume, author, publisher],
+      );
+
+      comicId = insertComic.insertId;
+    }
+
+    // 2. 巻情報（comic_volumes）が存在するか確認
+    const [volumeResults] = await db.query(
+      `SELECT id FROM comic_volumes WHERE comic_id = ? AND volume = ?`,
+      [comicId, volume],
+    );
+
+    // 巻情報がない場合のみ追加
+    if (volumeResults.length === 0) {
+      let isbn = "";
+      let imageUrl = "";
+
+      try {
+        const response = await axios.get(
+          "https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404",
+          {
+            params: {
+              applicationId: process.env.RAKUTEN_APP_ID,
+              title: `${comicName} ${volume}巻`,
+            },
+            timeout: 3000,
+          },
+        );
+
+        if (response.data.Items && response.data.Items.length > 0) {
+          const book = response.data.Items[0].Item;
+          isbn = book.isbn || "";
+          imageUrl = book.largeImageUrl || "";
+        }
+      } catch (apiErr) {
+        console.warn("楽天API取得失敗（volume追加時）:", apiErr.message);
+      }
+
+      await db.query(
+        `INSERT INTO comic_volumes (comic_id, volume, isbn, image_url)
+         VALUES (?, ?, ?, ?)`,
+        [comicId, volume, isbn, imageUrl],
+      );
+    }
+
+    // 3. 所持情報の重複確認
+    const [owningResults] = await db.query(
+      `SELECT id FROM comic_owning
+       WHERE group_id = ? AND comic_id = ? AND volume = ?`,
+      [groupId, comicId, volume],
+    );
+
+    if (owningResults.length > 0) {
+      // 重複時はロールバックしてフォームに戻す
+      await db.rollback();
+
+      const [groups] = await db.query(
+        `SELECT user_groups.id, user_groups.group_name
+         FROM user_groups
+         JOIN group_members ON user_groups.id = group_members.group_id
+         WHERE group_members.user_id = ?`,
+        [req.session.userId],
+      );
+
+      return res.render("add.ejs", {
+        username: req.session.username,
+        error: "同じグループに同じ漫画の同じ巻が既に登録されています。",
+        groups: groups,
+      });
+    }
+
+    // 4. 所持情報追加
+    await db.query(
+      `INSERT INTO comic_owning (group_id, comic_id, volume, price)
+       VALUES (?, ?, ?, ?)`,
+      [groupId, comicId, volume, price],
+    );
+
+    // すべての処理が成功したらコミット
+    await db.commit();
+    res.redirect("/list");
+  } catch (err) {
+    // エラー発生時はロールバック
+    await db.rollback();
+    console.error("登録処理エラー:", err);
+
+    // ユーザーには詳細なスタックトレースを見せない
+    res
+      .status(500)
+      .send("サーバーエラーが発生しました。時間をおいて再度お試しください。");
   }
 });
 
