@@ -318,6 +318,111 @@ app.get("/home", (req, res) => {
   }
 });
 
+app.get("/borrowed", async (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.redirect("/login");
+  }
+
+  try {
+    const [borrowed] = await connection.promise().query(
+      `SELECT
+         l.id,
+         l.due,
+         l.borrowed_at,
+         c.comic_name,
+         co.volume,
+         u.username AS lender_name,
+         cv.image_url
+       FROM lending l
+       JOIN comic_owning co ON l.owning_id = co.id
+       JOIN comics c ON co.comic_id = c.id
+       JOIN comic_volumes cv ON cv.comic_id = co.comic_id AND cv.volume = co.volume
+       JOIN users u ON l.lender_id = u.id
+       WHERE l.borrower_id = ?
+         AND l.status = 'lending'
+       ORDER BY l.due ASC`,
+      [req.session.userId],
+    );
+
+    res.render("borrowed.ejs", {
+      username: req.session.username,
+      borrowed,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("借りている本の取得に失敗しました");
+  }
+});
+
+app.get("/return/:lendingId", async (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.redirect("/login");
+  }
+
+  const lendingId = Number(req.params.lendingId);
+
+  if (Number.isNaN(lendingId)) {
+    return res.status(400).send("不正な貸し出しIDです");
+  }
+
+  try {
+    const [rows] = await connection.promise().query(
+      `SELECT
+         l.id,
+         c.comic_name,
+         co.volume,
+         u.username AS lender_name,
+         l.due
+       FROM lending l
+       JOIN comic_owning co ON l.owning_id = co.id
+       JOIN comics c ON co.comic_id = c.id
+       JOIN users u ON l.lender_id = u.id
+       WHERE l.id = ?
+         AND l.borrower_id = ?
+         AND l.status = 'lending'`,
+      [lendingId, req.session.userId],
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).send("対象の貸し出し情報が見つかりません");
+    }
+
+    res.render("return.ejs", {
+      username: req.session.username,
+      lending: rows[0],
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("返却ページの表示に失敗しました");
+  }
+});
+
+app.post("/return/:lendingId", async (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.redirect("/login");
+  }
+
+  const lendingId = Number(req.params.lendingId);
+
+  if (Number.isNaN(lendingId)) {
+    return res.status(400).send("不正な貸し出しIDです");
+  }
+
+  try {
+    await connection.promise().query(
+      `UPDATE lending
+       SET status = 'returned', returned_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND borrower_id = ? AND status = 'lending'`,
+      [lendingId, req.session.userId],
+    );
+
+    res.redirect("/borrowed");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("返却処理に失敗しました");
+  }
+});
+
 app.get("/list", (req, res) => {
   if (req.session.userId === undefined) {
     return res.redirect("/login");

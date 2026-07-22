@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>返却手続き | Comic-app</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1><a href="/home">Comic-app</a></h1>
+      <a href="/logout" onclick="return confirm('ログアウトしますか？');"
+        >ログアウト</a
+      >
+      <p>こんにちは、<%= username %>さん</p>
+    </header>
+
+    <div class="container">
+      <div class="panel">
+        <h2>返却手続き</h2>
+        <p>
+          <strong><%= lending.comic_name %></strong> 第<%= lending.volume %>巻
+          を返却します。
+        </p>
+        <p>貸し手: <%= lending.lender_name %></p>
+        <p>
+          返却予定日: <%= new Date(lending.due).toLocaleDateString('ja-JP') %>
+        </p>
+
+        <form action="/return/<%= lending.id %>" method="post">
+          <input type="submit" value="返却する" />
+        </form>
+      </div>
+
+      <a href="/borrowed">借りている本一覧へ戻る</a>
+    </div>
+
+    <footer>
+      <p>&copy; 2023 Comic-app. All rights reserved.</p>
+    </footer>
+  </body>
+</html>

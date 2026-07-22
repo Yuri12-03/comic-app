@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>借りている本一覧 | Comic-app</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1><a href="/home">Comic-app</a></h1>
+      <a href="/logout" onclick="return confirm('ログアウトしますか？');">ログアウト</a>
+      <p>こんにちは、<%= username %>さん</p>
+    </header>
+
+    <div class="container">
+      <div class="panel">
+        <h2>借りている本一覧</h2>
+
+        <% if (borrowed && borrowed.length > 0) { %>
+          <ul>
+            <% borrowed.forEach(function(item) { %>
+              <li>
+                <a href="/return/<%= item.id %>">
+                  <% if (item.image_url && item.image_url.trim() !== '') { %>
+                    <img src="<%= item.image_url %>" alt="<%= item.comic_name %>" style="max-width: 120px; display: block; margin-bottom: 8px;" />
+                  <% } else { %>
+                    <div style="width: 120px; height: 160px; background: #eee; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">No Image</div>
+                  <% } %>
+                </a>
+                <strong><%= item.comic_name %></strong> 第<%= item.volume %>巻
+                <br />
+                貸し手: <%= item.lender_name %>
+                <br />
+                借りた日: <%= new Date(item.borrowed_at).toLocaleDateString('ja-JP') %>
+                <br />
+                返却予定日: <%= new Date(item.due).toLocaleDateString('ja-JP') %>
+              </li>
+            <% }); %>
+          </ul>
+        <% } else { %>
+          <p>現在借りている本はありません。</p>
+        <% } %>
+      </div>
+
+      <a href="/home">ホームへ戻る</a>
+    </div>
+
+    <footer>
+      <p>&copy; 2023 Comic-app. All rights reserved.</p>
+    </footer>
+  </body>
+</html>
