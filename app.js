@@ -803,12 +803,16 @@ app.post("/add", async (req, res) => {
     const [groupMembers] = await connection
       .promise()
       .query(`SELECT user_id FROM group_members WHERE group_id = ?`, [groupId]);
+    const [groupRows] = await connection
+      .promise()
+      .query(`SELECT group_name FROM user_groups WHERE id = ?`, [groupId]);
+    const groupNameText = groupRows[0]?.group_name || "指定グループ";
 
     await Promise.all(
       groupMembers.map((member) =>
         createNotification(
           member.user_id,
-          `グループに新しい漫画「${comicName}」の${volume}巻が追加されました。`,
+          `グループ「${groupNameText}」に新しい漫画「${comicName}」の${volume}巻が追加されました。`,
         ),
       ),
     );
@@ -937,6 +941,7 @@ app.post("/lend/:owningId", async (req, res) => {
     }
 
     const borrowerId = userRows[0].id;
+    const borrowerName = userRows[0].username || borrowerEmail;
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + dueDays);
 
@@ -957,7 +962,7 @@ app.post("/lend/:owningId", async (req, res) => {
     );
     await createNotification(
       req.session.userId,
-      `本を貸し出しました。借り手のユーザーIDは ${borrowerId} です。`,
+      `本を貸し出しました。借り手は ${borrowerName} です。`,
     );
 
     res.redirect(`/comics/${req.body.comic_id}`);
