@@ -298,7 +298,6 @@ app.post("/add", async (req, res) => {
           params: {
             applicationId: process.env.RAKUTEN_APP_ID,
             title: `${comicName} ${volume}巻`,
-            format: "json",
           },
         },
       );
@@ -364,7 +363,6 @@ app.post("/add", async (req, res) => {
           params: {
             applicationId: process.env.RAKUTEN_APP_ID,
             title: `${comicName} ${volume}巻`,
-            format: "json",
           },
         },
       );
@@ -433,8 +431,24 @@ app.post("/add", async (req, res) => {
 
     res.redirect("/list");
   } catch (err) {
-    console.error(err.response.data);
-    res.send(err.response.data);
+    console.error("エラー発生");
+
+    if (err.response) {
+      console.error("status:", err.response.status);
+      console.error("data:", err.response.data);
+
+      return res.send(err.response.data);
+    }
+
+    if (err.request) {
+      console.error("レスポンスなし:");
+      console.error(err.request);
+
+      return res.send("楽天APIから応答がありません");
+    }
+
+    console.error(err.message);
+    return res.send(err.message);
   }
 });
 
