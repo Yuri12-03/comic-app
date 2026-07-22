@@ -36,6 +36,11 @@ connection.connect((err) => {
   console.log("MySQLに接続しました");
 });
 
+console.log("HOST:", process.env.DB_HOST);
+console.log("PORT:", process.env.DB_PORT);
+console.log("USER:", process.env.DB_USER);
+console.log("DB:", process.env.DB_NAME);
+
 app.use((req, res, next) => {
   if (req.session.userId === undefined) {
     res.locals.username = "ゲスト";
