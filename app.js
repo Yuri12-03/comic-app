@@ -292,9 +292,11 @@ app.post("/add", async (req, res) => {
       const response = await axios.get(
         "https://openai.rakuten.co.jp/services/api/BooksBook/Search/20170404",
         {
+          headers: {
+            accessKey: process.env.RAKUTEN_ACCESS_KEY,
+          },
           params: {
             applicationId: process.env.RAKUTEN_APP_ID,
-            accessKey: process.env.RAKUTEN_ACCESS_KEY,
             title: `${comicName} ${volume}巻`,
             format: "json",
           },
@@ -356,9 +358,11 @@ app.post("/add", async (req, res) => {
       const response = await axios.get(
         "https://openai.rakuten.co.jp/services/api/BooksBook/Search/20170404",
         {
+          headers: {
+            accessKey: process.env.RAKUTEN_ACCESS_KEY,
+          },
           params: {
             applicationId: process.env.RAKUTEN_APP_ID,
-            accessKey: process.env.RAKUTEN_ACCESS_KEY,
             title: `${comicName} ${volume}巻`,
             format: "json",
           },
