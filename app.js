@@ -429,7 +429,11 @@ app.get("/comics/:id", async (req, res) => {
     return res.redirect("/login");
   }
 
-  const comicId = req.params.id;
+  const comicId = Number(req.params.id);
+
+  if (Number.isNaN(comicId)) {
+    return res.status(400).send("不正な漫画IDです");
+  }
 
   try {
     // 漫画情報取得（ユーザーが所属するグループの漫画のみ取得）
@@ -479,7 +483,10 @@ app.get("/comics/:id", async (req, res) => {
     const defaultImage = "https://via.placeholder.com/150x200?text=No+Image";
 
     for (const volume of volumes) {
-      if (!volume.image_url || volume.image_url.trim() === "") {
+      const imageUrlValue =
+        typeof volume.image_url === "string" ? volume.image_url : "";
+
+      if (imageUrlValue.trim() === "") {
         const resolvedImageUrl = await ensureVolumeImageUrl(
           comicId,
           comics[0].comic_name,
@@ -489,13 +496,22 @@ app.get("/comics/:id", async (req, res) => {
       }
     }
 
-    const volumesWithImage = volumes.map((volume) => ({
-      ...volume,
-      image_url:
-        volume.image_url && volume.image_url.trim() !== ""
-          ? volume.image_url
-          : defaultImage,
-    }));
+    const volumesWithImage = volumes.map((volume) => {
+      const imageUrlValue =
+        typeof volume.image_url === "string" ? volume.image_url.trim() : "";
+      const normalizedPrice =
+        typeof volume.price === "number"
+          ? volume.price
+          : Number(volume.price) || 0;
+
+      return {
+        ...volume,
+        image_url: imageUrlValue !== "" ? imageUrlValue : defaultImage,
+        price: normalizedPrice,
+        group_name: volume.group_name || "未設定",
+        isbn: typeof volume.isbn === "string" ? volume.isbn : "",
+      };
+    });
 
     res.render("detail.ejs", {
       comic: comics[0],

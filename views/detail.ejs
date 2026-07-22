@@ -39,7 +39,7 @@
               <div class="volume-card">
                 <!-- 表紙画像（存在しない場合はプレースホルダー） -->
                 <img 
-                  src="<%= volume.image_url && volume.image_url.trim() !== '' ? volume.image_url : 'https://via.placeholder.com/150x200?text=No+Image' %>" 
+                  src="<%= typeof volume.image_url === 'string' && volume.image_url.trim() !== '' ? volume.image_url : 'https://via.placeholder.com/150x200?text=No+Image' %>" 
                   alt="<%= comic.comic_name %> <%= volume.volume %>巻" 
                   class="volume-cover" 
                 />
@@ -48,7 +48,7 @@
                   <h4><%= volume.volume %>巻</h4>
                   <p><strong>グループ：</strong><%= volume.group_name %></p>
                   
-                  <% if (volume.price) { %>
+                  <% if (typeof volume.price === 'number' && volume.price > 0) { %>
                     <p class="price">購入価格: ¥<%= volume.price.toLocaleString() %></p>
                   <% } %>
                   
