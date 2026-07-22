@@ -287,6 +287,8 @@ app.post("/add", async (req, res) => {
       comicId = comicResults[0].id;
     } else {
       // 楽天API検索
+      console.log("APP_ID:", process.env.RAKUTEN_APP_ID);
+      console.log("ACCESS_KEY:", process.env.RAKUTEN_ACCESS_KEY);
       const response = await axios.get(
         "https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404",
         {
@@ -349,6 +351,8 @@ app.post("/add", async (req, res) => {
 
     // 巻情報がない場合追加
     if (volumeResults.length === 0) {
+      console.log("APP_ID:", process.env.RAKUTEN_APP_ID);
+      console.log("ACCESS_KEY:", process.env.RAKUTEN_ACCESS_KEY);
       const response = await axios.get(
         "https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404",
         {
