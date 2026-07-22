@@ -294,14 +294,13 @@ app.post("/add", async (req, res) => {
         referer: "comic-app-yxqd.onrender.com",
       });
       const response = await axios.get(
-        "https://openapi.rakuten.co.jp/services/api/BooksTotal/Search/20170404",
+        "https://www.googleapis.com/books/v1/volumes",
         {
           params: {
-            format: "json",
-            keyword: `${comicName} ${volume}`,
-            booksGenreId: "000",
-            applicationId: process.env.RAKUTEN_APP_ID,
-            accessKey: process.env.RAKUTEN_ACCESS_KEY,
+            q: `${comicName} ${volume}巻`,
+            maxResults: 1,
+            langRestrict: "ja",
+            key: process.env.GOOGLE_BOOKS_API_KEY,
           },
         },
       );
@@ -359,14 +358,13 @@ app.post("/add", async (req, res) => {
       console.log("APP_ID:", process.env.RAKUTEN_APP_ID);
       console.log("ACCESS_KEY:", process.env.RAKUTEN_ACCESS_KEY);
       const response = await axios.get(
-        "https://openapi.rakuten.co.jp/services/api/BooksTotal/Search/20170404",
+        "https://www.googleapis.com/books/v1/volumes",
         {
           params: {
-            applicationId: process.env.RAKUTEN_APP_ID,
-            accessKey: process.env.RAKUTEN_ACCESS_KEY,
-            keyword: `${comicName} ${volume}`,
-            booksGenreId: "000",
-            format: "json",
+            q: `${comicName} ${volume}巻`,
+            maxResults: 1,
+            langRestrict: "ja",
+            key: process.env.GOOGLE_BOOKS_API_KEY,
           },
         },
       );
