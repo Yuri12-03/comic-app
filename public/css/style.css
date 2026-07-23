@@ -164,6 +164,46 @@ input[type="submit"]:hover {
   min-width: 220px;
 }
 
+.home-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.home-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 120px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f8f6ff 0%, #eef4ff 100%);
+  border: 1px solid #e2dcff;
+  border-radius: 16px;
+  text-decoration: none;
+  color: #4b3f9e;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.home-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+}
+
+.home-card__icon {
+  font-size: 1.6rem;
+}
+
+.home-card--book img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+}
+
 .member-list {
   list-style: none;
   padding: 0;

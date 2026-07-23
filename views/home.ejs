@@ -17,11 +17,28 @@
       <div class="panel">
         <h2>ホーム</h2>
         <p>ようこそ、Comic-appへ！</p>
-        <a href="/create_group">グループ作成</a>
-        <a href="/show_groups">グループ一覧</a>
-        <a href="/list">漫画一覧へ</a>
-        <a href="/borrowed">借りている本一覧</a>
-        <a href="/chat">チャットルームへ</a>
+        <div class="home-actions">
+          <a class="home-card" href="/create_group">
+            <span class="home-card__icon">👥</span>
+            <span>グループ作成</span>
+          </a>
+          <a class="home-card" href="/show_groups">
+            <span class="home-card__icon">📚</span>
+            <span>グループ一覧</span>
+          </a>
+          <a class="home-card home-card--book" href="/list">
+            <img src="/images/bookshelf.png" alt="漫画一覧" />
+            <span>漫画一覧</span>
+          </a>
+          <a class="home-card" href="/borrowed">
+            <span class="home-card__icon">📖</span>
+            <span>借りている本一覧</span>
+          </a>
+          <a class="home-card" href="/chat">
+            <span class="home-card__icon">💬</span>
+            <span>チャットルーム</span>
+          </a>
+        </div>
       </div>
       <div class="info">
         <h2>通知</h2>
