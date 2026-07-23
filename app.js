@@ -417,29 +417,9 @@ app.get("/home", async (req, res) => {
       [req.session.userId],
     );
 
-    const unreadNotificationIds = notifications
-      .filter((item) => !item.is_read)
-      .map((item) => item.id);
-
-    if (unreadNotificationIds.length > 0) {
-      await connection.promise().query(
-        `UPDATE notifications SET is_read = TRUE WHERE id IN (?) AND user_id = ?`,
-        [unreadNotificationIds, req.session.userId],
-      );
-    }
-
-    const [updatedNotifications] = await connection.promise().query(
-      `SELECT id, message, created_at, is_read
-       FROM notifications
-       WHERE user_id = ?
-       ORDER BY created_at DESC, id DESC
-       LIMIT 10`,
-      [req.session.userId],
-    );
-
     res.render("home.ejs", {
       username: req.session.username,
-      notifications: updatedNotifications,
+      notifications,
     });
   } catch (err) {
     console.error(err);
