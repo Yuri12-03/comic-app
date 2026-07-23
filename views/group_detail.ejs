@@ -24,9 +24,9 @@
         <% } %>
 
         <h3>メンバー追加</h3>
-        <form action="/groups/<%= group.id %>/add_member" method="post" class="group-form">
+        <form action="/groups/<%= group.id %>/add_member" method="post" class="group-form submit-once-form">
           <input type="email" name="email" placeholder="メールアドレス" required />
-          <button type="submit">追加</button>
+          <button type="submit" class="submit-once-button">追加</button>
         </form>
 
         <h3>メンバー一覧</h3>
@@ -35,8 +35,8 @@
             <li class="member-item">
               <span><%= member.username %>（<%= member.email %>）</span>
               <% if (isHost && member.id !== group.owner_id) { %>
-                <form action="/groups/<%= group.id %>/remove_member/<%= member.id %>" method="post" class="inline-form">
-                  <button type="submit" class="btn-delete">削除</button>
+                <form action="/groups/<%= group.id %>/remove_member/<%= member.id %>" method="post" class="inline-form submit-once-form">
+                  <button type="submit" class="btn-delete submit-once-button">削除</button>
                 </form>
               <% } %>
             </li>
@@ -52,5 +52,16 @@
     <footer>
       <p>&copy; 2023 Comic-app. All rights reserved.</p>
     </footer>
+    <script>
+      document.querySelectorAll('.submit-once-form').forEach(function (form) {
+        form.addEventListener('submit', function () {
+          const button = form.querySelector('.submit-once-button');
+          if (button) {
+            button.disabled = true;
+            button.textContent = '処理中...';
+          }
+        });
+      });
+    </script>
   </body>
 </html>

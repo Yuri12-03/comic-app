@@ -1007,10 +1007,12 @@ app.post("/lend/:owningId", async (req, res) => {
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + dueDays);
 
-    const [activeLendingRows] = await connection.promise().query(
-      `SELECT id FROM lending WHERE owning_id = ? AND status = 'lending'`,
-      [owningId],
-    );
+    const [activeLendingRows] = await connection
+      .promise()
+      .query(
+        `SELECT id FROM lending WHERE owning_id = ? AND status = 'lending'`,
+        [owningId],
+      );
 
     if (activeLendingRows.length > 0) {
       const [owningRows] = await connection.promise().query(

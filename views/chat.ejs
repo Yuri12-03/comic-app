@@ -30,9 +30,9 @@
             <% }) %>
           </div>
 
-          <form id="chat-form" class="chat-form" action="/chat/<%= groupId %>" method="post">
+          <form id="chat-form" class="chat-form submit-once-form" action="/chat/<%= groupId %>" method="post">
             <input type="text" name="message" placeholder="メッセージを入力" required />
-            <button type="submit">送信</button>
+            <button type="submit" class="submit-once-button">送信</button>
           </form>
         </div>
       </div>
@@ -45,5 +45,16 @@
     <footer>
       <p>&copy; 2023 Comic-app. All rights reserved.</p>
     </footer>
+    <script>
+      document.querySelectorAll('.submit-once-form').forEach(function (form) {
+        form.addEventListener('submit', function () {
+          const button = form.querySelector('.submit-once-button');
+          if (button) {
+            button.disabled = true;
+            button.textContent = '送信中...';
+          }
+        });
+      });
+    </script>
   </body>
 </html>

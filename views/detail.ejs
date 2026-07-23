@@ -57,10 +57,10 @@
                 <!-- 削除や編集ボタンを設置する場合の例 -->
                 <div class="volume-actions">
                   <a href="/lend/<%= volume.owning_id %>" class="btn-add">貸し出す</a>
-                  <form action="/delete-volume" method="post" onsubmit="return confirm('本当に削除しますか？');">
+                  <form action="/delete-volume" method="post" class="submit-once-form" onsubmit="return confirm('本当に削除しますか？');">
                     <input type="hidden" name="comic_id" value="<%= comic.id %>">
                     <input type="hidden" name="volume" value="<%= volume.volume %>">
-                    <button type="submit" class="btn-delete">削除</button>
+                    <button type="submit" class="btn-delete submit-once-button">削除</button>
                   </form>
                 </div>
               </div>
@@ -80,5 +80,16 @@
         <p>&copy; 2023 Comic-app. All rights reserved.</p>
       </footer>
     </div>
+    <script>
+      document.querySelectorAll('.submit-once-form').forEach(function (form) {
+        form.addEventListener('submit', function () {
+          const button = form.querySelector('.submit-once-button');
+          if (button) {
+            button.disabled = true;
+            button.textContent = '処理中...';
+          }
+        });
+      });
+    </script>
   </body>
 </html>

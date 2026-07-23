@@ -16,7 +16,7 @@
         <div class="container">
         <div class="panel">
             <h2>グループ作成</h2>
-            <form action="/create_group" method="post">
+            <form action="/create_group" method="post" class="submit-once-form">
             <label for="group_name">グループ名:</label>
             <input type="text" id="group_name" name="group_name" required />
              <h3>招待するメンバー</h3>
@@ -35,7 +35,7 @@
     <button type="button" id="add-email">＋ メールアドレスを追加</button>
 
     <br><br>
-            <input type="submit" value="作成" />
+            <input type="submit" value="作成" class="submit-once-button" />
             </form>
             <% if (error) { %>
             <p class="error"><%= error %></p>
@@ -47,6 +47,16 @@
         <p>&copy; 2023 Comic-app. All rights reserved.</p>
         </footer>
         <script>
+document.querySelectorAll('.submit-once-form').forEach(function (form) {
+    form.addEventListener('submit', function () {
+        const button = form.querySelector('.submit-once-button');
+        if (button) {
+            button.disabled = true;
+            button.value = '処理中...';
+        }
+    });
+});
+
 document.getElementById("add-email").addEventListener("click", () => {
     const div = document.createElement("div");
     div.className = "email-item";
