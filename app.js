@@ -447,6 +447,23 @@ app.post("/notifications/:notificationId/read", async (req, res) => {
   }
 });
 
+app.post("/notifications/read-all", async (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.status(401).send("ログインが必要です");
+  }
+
+  try {
+    await connection.promise().query(
+      `UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND is_read = FALSE`,
+      [req.session.userId],
+    );
+    return res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send("通知の更新に失敗しました");
+  }
+});
+
 app.get("/borrowed", async (req, res) => {
   if (req.session.userId === undefined) {
     return res.redirect("/login");
