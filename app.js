@@ -621,7 +621,11 @@ app.post("/return/:lendingId", async (req, res) => {
       [lendingId, req.session.userId],
     );
 
-    const { lender_id: lenderId, comic_name: comicName, borrower_name: borrowerName } = lendingRows[0];
+    const {
+      lender_id: lenderId,
+      comic_name: comicName,
+      borrower_name: borrowerName,
+    } = lendingRows[0];
 
     await createNotification(
       req.session.userId,

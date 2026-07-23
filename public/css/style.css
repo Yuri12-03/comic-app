@@ -159,6 +159,29 @@ input[type="submit"]:hover {
   color: inherit;
 }
 
+.add-button {
+  display: inline-block;
+  margin: 10px 0 18px;
+  padding: 10px 16px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 4px 10px rgba(108, 92, 231, 0.2);
+}
+
+.form-section {
+  border: 1px solid #ece7ff;
+  background: #faf9ff;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.form-section h3 {
+  margin: 0 0 8px;
+  color: #4b3f9e;
+  font-size: 1rem;
+}
+
 .comic-cover,
 .volume-cover {
   width: 100%;
