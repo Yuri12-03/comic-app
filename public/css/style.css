@@ -140,6 +140,7 @@ input[type="submit"]:hover {
   border-radius: 10px;
   padding: 12px 14px;
   margin-top: 12px;
+  box-shadow: inset 0 0 0 1px rgba(180, 35, 24, 0.08);
 }
 
 .success {
@@ -240,7 +241,9 @@ input[type="submit"]:hover {
   border-radius: 14px;
   padding: 14px;
   text-align: center;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .borrowed-card:hover,

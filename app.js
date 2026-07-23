@@ -1007,6 +1007,27 @@ app.post("/lend/:owningId", async (req, res) => {
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + dueDays);
 
+    const [activeLendingRows] = await connection.promise().query(
+      `SELECT id FROM lending WHERE owning_id = ? AND status = 'lending'`,
+      [owningId],
+    );
+
+    if (activeLendingRows.length > 0) {
+      const [owningRows] = await connection.promise().query(
+        `SELECT co.id, co.group_id, co.comic_id, co.volume, co.price, c.comic_name
+         FROM comic_owning co
+         JOIN comics c ON co.comic_id = c.id
+         WHERE co.id = ?`,
+        [owningId],
+      );
+
+      return res.render("lending.ejs", {
+        username: req.session.username,
+        owning: owningRows[0],
+        error: "この漫画はすでに貸し出し中です。",
+      });
+    }
+
     await connection.promise().query(
       `INSERT INTO lending (owning_id, borrower_id, lender_id, due, status)
        VALUES (?, ?, ?, ?, 'lending')`,
