@@ -39,6 +39,7 @@
         <h3>所持している巻一覧</h3>
 
         <form action="/lend-multiple-detail" method="post" class="bulk-lend-form">
+          <input type="hidden" name="comic_id" value="<%= comic.id %>" />
           <div class="bulk-actions">
             <label class="select-all-toggle">
               <input type="checkbox" id="select-all-volumes" />

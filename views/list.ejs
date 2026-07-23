@@ -42,18 +42,36 @@
         <a href="/add" class="btn-add add-button">漫画を追加</a>
         <h2>漫画一覧</h2>
 
-        <!-- 漫画リストを表示する部分 -->
-        <div class="comic-list">
-          <% comics.forEach(comic => { %>
-            <div class="comic-card">
-              <!-- 画像とタイトルの両方にリンクを設置 -->
-              <a href="/comics/<%= comic.id %>" class="comic-link">
-                <img src="<%= comic.image_url %>" alt="<%= comic.comic_name %>" class="comic-cover" />
-                <h3><%= comic.comic_name %></h3>
-              </a>
+        <form action="/lend-multiple-list" method="post" class="bulk-lend-form">
+          <div class="bulk-actions">
+            <label class="select-all-toggle">
+              <input type="checkbox" id="select-all-comics" />
+              <span>すべて選択</span>
+            </label>
+            <div class="bulk-lend-fields">
+              <label for="bulk-borrower-email">借りる相手のメールアドレス</label>
+              <input type="email" id="bulk-borrower-email" name="borrower_email" required />
+              <label for="bulk-due-days">返却日数</label>
+              <input type="number" id="bulk-due-days" name="due_days" min="1" value="7" required />
+              <button type="submit" class="btn-add">まとめて貸し出し</button>
             </div>
-          <% }) %>
-        </div>
+          </div>
+
+          <div class="comic-list">
+            <% comics.forEach(comic => { %>
+              <div class="comic-card">
+                <label class="comic-select-label">
+                  <input type="checkbox" class="comic-select-checkbox" name="comic_ids[]" value="<%= comic.id %>" />
+                  <span>選択</span>
+                </label>
+                <a href="/comics/<%= comic.id %>" class="comic-link">
+                  <img src="<%= comic.image_url %>" alt="<%= comic.comic_name %>" class="comic-cover" />
+                  <h3><%= comic.comic_name %></h3>
+                </a>
+              </div>
+            <% }) %>
+          </div>
+        </form>
 
       </div>
       <a href="/home">ホームへ戻る</a>
@@ -61,5 +79,26 @@
         <p>&copy; 2026 Mngr. All rights reserved.</p>
       </footer>
     </div>
+    <script>
+      const selectAllCheckbox = document.getElementById("select-all-comics");
+      const comicCheckboxes = Array.from(document.querySelectorAll(".comic-select-checkbox"));
+
+      if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener("change", function () {
+          comicCheckboxes.forEach(function (checkbox) {
+            checkbox.checked = selectAllCheckbox.checked;
+          });
+        });
+
+        comicCheckboxes.forEach(function (checkbox) {
+          checkbox.addEventListener("change", function () {
+            const allChecked = comicCheckboxes.length > 0 && comicCheckboxes.every(function (item) {
+              return item.checked;
+            });
+            selectAllCheckbox.checked = allChecked;
+          });
+        });
+      }
+    </script>
   </body>
 </html>
