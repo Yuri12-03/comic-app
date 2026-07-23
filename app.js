@@ -202,12 +202,26 @@ async function checkAndSendDueDateNotifications(userId) {
 
   try {
     const [rows] = await connection.promise().query(
-      `SELECT id, borrower_id, lender_id, due, notified_3days, notified_1day
-       FROM lending
-       WHERE status = 'lending'
-         AND (borrower_id = ? OR lender_id = ?)
-       ORDER BY due ASC`,
-      [userId, userId],
+      `SELECT
+         l.id,
+         l.borrower_id,
+         l.lender_id,
+         l.due,
+         l.notified_3days,
+         l.notified_1day,
+         c.comic_name,
+         u.username AS counterpart_name
+       FROM lending l
+       JOIN comic_owning co ON l.owning_id = co.id
+       JOIN comics c ON co.comic_id = c.id
+       LEFT JOIN users u ON u.id = CASE
+         WHEN l.borrower_id = ? THEN l.lender_id
+         ELSE l.borrower_id
+       END
+       WHERE l.status = 'lending'
+         AND (l.borrower_id = ? OR l.lender_id = ?)
+       ORDER BY l.due ASC`,
+      [userId, userId, userId],
     );
 
     const now = new Date();
@@ -218,9 +232,10 @@ async function checkAndSendDueDateNotifications(userId) {
       const daysLeft = Math.ceil((dueDate - now) / oneDayMs);
 
       if (daysLeft <= 3 && daysLeft > 1 && !row.notified_3days) {
+        const counterpartLabel = row.counterpart_name || "相手";
         await createNotification(
           userId,
-          `返却期限まで残り${daysLeft}日です。お忘れなく返却してください。`,
+          `${row.comic_name}（${counterpartLabel}）の返却期限まで残り${daysLeft}日です。お忘れなく返却してください。`,
         );
         await connection.promise().query(
           `UPDATE lending SET notified_3days = TRUE WHERE id = ?`,
@@ -229,9 +244,10 @@ async function checkAndSendDueDateNotifications(userId) {
       }
 
       if (daysLeft <= 1 && !row.notified_1day) {
+        const counterpartLabel = row.counterpart_name || "相手";
         await createNotification(
           userId,
-          `返却期限まで残り${daysLeft}日です。今日中に返却してください。`,
+          `${row.comic_name}（${counterpartLabel}）の返却期限まで残り${daysLeft}日です。今日中に返却してください。`,
         );
         await connection.promise().query(
           `UPDATE lending SET notified_1day = TRUE WHERE id = ?`,
