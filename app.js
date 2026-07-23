@@ -195,6 +195,55 @@ async function createNotification(userId, message) {
     ]);
 }
 
+async function checkAndSendDueDateNotifications(userId) {
+  if (!userId) {
+    return;
+  }
+
+  try {
+    const [rows] = await connection.promise().query(
+      `SELECT id, borrower_id, lender_id, due, notified_3days, notified_1day
+       FROM lending
+       WHERE status = 'lending'
+         AND (borrower_id = ? OR lender_id = ?)
+       ORDER BY due ASC`,
+      [userId, userId],
+    );
+
+    const now = new Date();
+    const oneDayMs = 1000 * 60 * 60 * 24;
+
+    for (const row of rows) {
+      const dueDate = new Date(row.due);
+      const daysLeft = Math.ceil((dueDate - now) / oneDayMs);
+
+      if (daysLeft <= 3 && daysLeft > 1 && !row.notified_3days) {
+        await createNotification(
+          userId,
+          `返却期限まで残り${daysLeft}日です。お忘れなく返却してください。`,
+        );
+        await connection.promise().query(
+          `UPDATE lending SET notified_3days = TRUE WHERE id = ?`,
+          [row.id],
+        );
+      }
+
+      if (daysLeft <= 1 && !row.notified_1day) {
+        await createNotification(
+          userId,
+          `返却期限まで残り${daysLeft}日です。今日中に返却してください。`,
+        );
+        await connection.promise().query(
+          `UPDATE lending SET notified_1day = TRUE WHERE id = ?`,
+          [row.id],
+        );
+      }
+    }
+  } catch (err) {
+    console.warn("期限通知のチェックに失敗しました:", err.message);
+  }
+}
+
 app.use((req, res, next) => {
   if (req.session.userId === undefined) {
     res.locals.username = "ゲスト";
@@ -218,33 +267,35 @@ app.get("/login", (req, res) => {
   }
 });
 
-app.post("/login", (req, res) => {
+app.post("/login", async (req, res) => {
   const email = req.body.email;
-  connection.query(
-    "SELECT * FROM users WHERE email = ?",
-    [email],
-    (err, results) => {
-      if (err) {
-        console.error(err);
-        return res.send(err);
+
+  try {
+    const [results] = await connection.promise().query(
+      "SELECT * FROM users WHERE email = ?",
+      [email],
+    );
+
+    if (results.length > 0) {
+      const plain = req.body.password;
+      const hash = results[0].password;
+      const isEqual = await bcrypt.compare(plain, hash);
+
+      if (isEqual) {
+        req.session.userId = results[0].id;
+        req.session.username = results[0].username;
+        await checkAndSendDueDateNotifications(results[0].id);
+        return res.redirect("/home");
       }
-      if (results.length > 0) {
-        const plain = req.body.password;
-        const hash = results[0].password;
-        bcrypt.compare(plain, hash, (err, isEqual) => {
-          if (isEqual) {
-            req.session.userId = results[0].id;
-            req.session.username = results[0].username;
-            res.redirect("/home");
-          } else {
-            res.send("パスワードが違います");
-          }
-        });
-      } else {
-        res.send("メールアドレスが見つかりません");
-      }
-    },
-  );
+
+      return res.send("パスワードが違います");
+    }
+
+    return res.send("メールアドレスが見つかりません");
+  } catch (err) {
+    console.error(err);
+    return res.send(err);
+  }
 });
 
 app.get("/logout", (req, res) => {
