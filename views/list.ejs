@@ -57,10 +57,10 @@
             </div>
           </div>
 
-          <% if (successMessage) { %>
+          <% if (typeof successMessage !== 'undefined' && successMessage) { %>
             <p class="success"><%= successMessage %></p>
           <% } %>
-          <% if (errorMessage) { %>
+          <% if (typeof errorMessage !== 'undefined' && errorMessage) { %>
             <p class="error"><%= errorMessage %></p>
           <% } %>
 
@@ -86,7 +86,6 @@
         <p>&copy; 2026 Mngr. All rights reserved.</p>
       </footer>
     </div>
-  </body>
     <script>
       const selectAllCheckbox = document.getElementById("select-all-comics");
       const comicCheckboxes = Array.from(document.querySelectorAll(".comic-select-checkbox"));
