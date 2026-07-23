@@ -169,6 +169,7 @@ input[type="submit"]:hover {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-top: 16px;
+  align-items: start;
 }
 
 .home-card {
@@ -198,9 +199,15 @@ input[type="submit"]:hover {
   font-size: 1.6rem;
 }
 
+.home-card--book {
+  grid-column: 1 / span 2;
+  min-height: 160px;
+  padding: 20px;
+}
+
 .home-card--book img {
-  width: 60px;
-  height: 60px;
+  width: 120px;
+  height: 80px;
   object-fit: contain;
 }
 
