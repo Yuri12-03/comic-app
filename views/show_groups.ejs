@@ -16,9 +16,13 @@
                 <h2>グループ一覧</h2>
                 <p>作成したグループを表示します。</p>
                 <!-- Group list would be displayed here -->
-                <ul>
+                <ul class="chat-list">
                     <% groups.forEach((group) => { %>
-                        <li><%= group.group_name %></li>
+                        <li>
+                            <a href="/groups/<%= group.id %>">
+                                <%= group.group_name %>
+                            </a>
+                        </li>
                     <% }); %>
                 </ul>
             </div>

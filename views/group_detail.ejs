@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title><%= group.group_name %> | Comic-app</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1><a href="/home">Comic-app</a></h1>
+      <a href="/logout" onclick="return confirm('ログアウトしますか？');">ログアウト</a>
+      <p>こんにちは、<%= username %>さん</p>
+    </header>
+
+    <div class="container">
+      <div class="panel">
+        <h2><%= group.group_name %></h2>
+
+        <% if (error) { %>
+          <p class="error"><%= error %></p>
+        <% } %>
+        <% if (success) { %>
+          <p class="success"><%= success %></p>
+        <% } %>
+
+        <h3>メンバー追加</h3>
+        <form action="/groups/<%= group.id %>/add_member" method="post" class="group-form">
+          <input type="email" name="email" placeholder="メールアドレス" required />
+          <button type="submit">追加</button>
+        </form>
+
+        <h3>メンバー一覧</h3>
+        <ul class="member-list">
+          <% members.forEach((member) => { %>
+            <li class="member-item">
+              <span><%= member.username %>（<%= member.email %>）</span>
+              <% if (isHost && member.id !== group.owner_id) { %>
+                <form action="/groups/<%= group.id %>/remove_member/<%= member.id %>" method="post" class="inline-form">
+                  <button type="submit" class="btn-delete">削除</button>
+                </form>
+              <% } %>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+
+      <div class="navigation-links">
+        <a href="/show_groups">グループ一覧へ戻る</a>
+      </div>
+    </div>
+
+    <footer>
+      <p>&copy; 2023 Comic-app. All rights reserved.</p>
+    </footer>
+  </body>
+</html>

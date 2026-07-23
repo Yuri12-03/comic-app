@@ -786,8 +786,7 @@ app.post("/add", async (req, res) => {
         );
 
       if (owningResults.length > 0) {
-        const errorMessage =
-          `同じグループに同じ漫画の${currentVolume}巻が既に登録されています。`;
+        const errorMessage = `同じグループに同じ漫画の${currentVolume}巻が既に登録されています。`;
         const query = new URLSearchParams({
           comic_name: comicName || "",
           comic_id:
@@ -1083,13 +1082,187 @@ app.get("/show_groups", (req, res) => {
   if (req.session.userId === undefined) {
     return res.redirect("/login");
   }
+
   connection.query(
-    "SELECT user_groups.group_name from user_groups JOIN group_members ON user_groups.id = group_members.group_id WHERE group_members.user_id = ?",
+    `SELECT user_groups.id, user_groups.group_name
+     FROM user_groups
+     JOIN group_members ON user_groups.id = group_members.group_id
+     WHERE group_members.user_id = ?
+     ORDER BY user_groups.group_name ASC`,
     [req.session.userId],
     (err, results) => {
-      res.render("show_groups.ejs", { error: null, groups: results });
+      if (err) {
+        console.error(err);
+        return res.send(err);
+      }
+
+      res.render("show_groups.ejs", {
+        error: null,
+        groups: results,
+        username: req.session.username,
+      });
     },
   );
+});
+
+app.get("/groups/:groupId", async (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.redirect("/login");
+  }
+
+  const groupId = Number(req.params.groupId);
+
+  if (Number.isNaN(groupId)) {
+    return res.status(400).send("不正なグループIDです");
+  }
+
+  try {
+    const [membershipRows] = await connection.promise().query(
+      "SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?",
+      [groupId, req.session.userId],
+    );
+
+    if (membershipRows.length === 0) {
+      return res.status(403).send("このグループのメンバーではありません");
+    }
+
+    const [groupRows] = await connection.promise().query(
+      "SELECT id, group_name, owner_id FROM user_groups WHERE id = ?",
+      [groupId],
+    );
+
+    if (groupRows.length === 0) {
+      return res.status(404).send("グループが見つかりません");
+    }
+
+    const [memberRows] = await connection.promise().query(
+      `SELECT users.id, users.username, users.email
+       FROM group_members
+       JOIN users ON group_members.user_id = users.id
+       WHERE group_members.group_id = ?
+       ORDER BY users.username ASC`,
+      [groupId],
+    );
+
+    res.render("group_detail.ejs", {
+      error: req.query.error || "",
+      success: req.query.success || "",
+      group: groupRows[0],
+      members: memberRows,
+      isHost: groupRows[0].owner_id === req.session.userId,
+      username: req.session.username,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("グループ詳細の読み込みに失敗しました");
+  }
+});
+
+app.post("/groups/:groupId/add_member", async (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.redirect("/login");
+  }
+
+  const groupId = Number(req.params.groupId);
+  const email = (req.body.email || "").trim().toLowerCase();
+
+  if (Number.isNaN(groupId) || !email) {
+    const params = new URLSearchParams({ error: "メールアドレスを入力してください" }).toString();
+    return res.redirect(`/groups/${groupId}?${params}`);
+  }
+
+  try {
+    const [membershipRows] = await connection.promise().query(
+      "SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?",
+      [groupId, req.session.userId],
+    );
+
+    if (membershipRows.length === 0) {
+      const params = new URLSearchParams({ error: "このグループのメンバーではありません" }).toString();
+      return res.redirect(`/groups/${groupId}?${params}`);
+    }
+
+    const [userRows] = await connection.promise().query(
+      "SELECT id, username FROM users WHERE LOWER(email) = ?",
+      [email],
+    );
+
+    if (userRows.length === 0) {
+      const params = new URLSearchParams({ error: "そのメールアドレスのユーザーは見つかりませんでした" }).toString();
+      return res.redirect(`/groups/${groupId}?${params}`);
+    }
+
+    const targetUserId = userRows[0].id;
+    const [existingRows] = await connection.promise().query(
+      "SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?",
+      [groupId, targetUserId],
+    );
+
+    if (existingRows.length > 0) {
+      const params = new URLSearchParams({ error: "そのユーザーはすでにメンバーです" }).toString();
+      return res.redirect(`/groups/${groupId}?${params}`);
+    }
+
+    await connection.promise().query(
+      "INSERT INTO group_members (group_id, user_id) VALUES (?, ?)",
+      [groupId, targetUserId],
+    );
+
+    const params = new URLSearchParams({ success: `${userRows[0].username}さんを追加しました` }).toString();
+    return res.redirect(`/groups/${groupId}?${params}`);
+  } catch (err) {
+    console.error(err);
+    const params = new URLSearchParams({ error: "ユーザー追加に失敗しました" }).toString();
+    return res.redirect(`/groups/${groupId}?${params}`);
+  }
+});
+
+app.post("/groups/:groupId/remove_member/:userId", async (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.redirect("/login");
+  }
+
+  const groupId = Number(req.params.groupId);
+  const targetUserId = Number(req.params.userId);
+
+  if (Number.isNaN(groupId) || Number.isNaN(targetUserId)) {
+    const params = new URLSearchParams({ error: "不正なリクエストです" }).toString();
+    return res.redirect(`/groups/${groupId}?${params}`);
+  }
+
+  try {
+    const [groupRows] = await connection.promise().query(
+      "SELECT owner_id FROM user_groups WHERE id = ?",
+      [groupId],
+    );
+
+    if (groupRows.length === 0) {
+      const params = new URLSearchParams({ error: "グループが見つかりません" }).toString();
+      return res.redirect(`/groups/${groupId}?${params}`);
+    }
+
+    if (groupRows[0].owner_id !== req.session.userId) {
+      const params = new URLSearchParams({ error: "ホストのみメンバーを削除できます" }).toString();
+      return res.redirect(`/groups/${groupId}?${params}`);
+    }
+
+    if (targetUserId === groupRows[0].owner_id) {
+      const params = new URLSearchParams({ error: "ホスト自身は削除できません" }).toString();
+      return res.redirect(`/groups/${groupId}?${params}`);
+    }
+
+    await connection.promise().query(
+      "DELETE FROM group_members WHERE group_id = ? AND user_id = ?",
+      [groupId, targetUserId],
+    );
+
+    const params = new URLSearchParams({ success: "メンバーを削除しました" }).toString();
+    return res.redirect(`/groups/${groupId}?${params}`);
+  } catch (err) {
+    console.error(err);
+    const params = new URLSearchParams({ error: "メンバー削除に失敗しました" }).toString();
+    return res.redirect(`/groups/${groupId}?${params}`);
+  }
 });
 
 app.get("/chat", (req, res) => {
