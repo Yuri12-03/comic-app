@@ -42,7 +42,7 @@
         <a href="/add" class="btn-add add-button">漫画を追加</a>
         <h2>漫画一覧</h2>
 
-        <form action="/lend-multiple-list" method="post" class="bulk-lend-form">
+        <form action="/lend-multiple" method="post" class="bulk-lend-form">
           <div class="bulk-actions">
             <label class="select-all-toggle">
               <input type="checkbox" id="select-all-comics" />
@@ -56,6 +56,13 @@
               <button type="submit" class="btn-add">まとめて貸し出し</button>
             </div>
           </div>
+
+          <% if (successMessage) { %>
+            <p class="success"><%= successMessage %></p>
+          <% } %>
+          <% if (errorMessage) { %>
+            <p class="error"><%= errorMessage %></p>
+          <% } %>
 
           <div class="comic-list">
             <% comics.forEach(comic => { %>
@@ -79,6 +86,7 @@
         <p>&copy; 2026 Mngr. All rights reserved.</p>
       </footer>
     </div>
+  </body>
     <script>
       const selectAllCheckbox = document.getElementById("select-all-comics");
       const comicCheckboxes = Array.from(document.querySelectorAll(".comic-select-checkbox"));

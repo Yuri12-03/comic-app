@@ -155,59 +155,6 @@ input[type="submit"]:hover {
   gap: 20px;
 }
 
-.bulk-lend-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.bulk-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 12px 14px;
-  border: 1px solid #ece7ff;
-  border-radius: 12px;
-  background: #faf9ff;
-}
-
-.select-all-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  color: #4b3f9e;
-}
-
-.bulk-lend-fields {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.bulk-lend-fields label {
-  font-size: 0.95rem;
-  color: #4b3f9e;
-}
-
-.bulk-lend-fields input {
-  min-width: 180px;
-  margin: 0;
-}
-
-.comic-select-label {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  font-size: 0.85rem;
-  color: #4b3f9e;
-  margin-bottom: 8px;
-}
-
 .comic-card,
 .volume-card {
   background: #faf9ff;
