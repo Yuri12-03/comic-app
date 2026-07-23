@@ -246,6 +246,18 @@ input[type="submit"]:hover {
     box-shadow 0.2s ease;
 }
 
+.borrowed-card.deadline-card--warning,
+.lent-card.deadline-card--warning {
+  background: #fff7d6;
+  border-color: #f2c94c;
+}
+
+.borrowed-card.deadline-card--danger,
+.lent-card.deadline-card--danger {
+  background: #ffe2e2;
+  border-color: #f87171;
+}
+
 .borrowed-card:hover,
 .lent-card:hover {
   transform: translateY(-3px);

@@ -19,7 +19,15 @@
         <% if (borrowed && borrowed.length > 0) { %>
           <div class="borrowed-list">
             <% borrowed.forEach(function(item) { %>
-              <div class="borrowed-card">
+              <%
+                const dueDate = new Date(item.due);
+                const now = new Date();
+                const daysLeft = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+                const deadlineClass = daysLeft <= 1
+                  ? 'deadline-card deadline-card--danger'
+                  : (daysLeft <= 3 ? 'deadline-card deadline-card--warning' : '');
+              %>
+              <div class="borrowed-card <%= deadlineClass %>">
                 <a href="/return/<%= item.id %>">
                   <% if (item.image_url && item.image_url.trim() !== '') { %>
                     <img src="<%= item.image_url %>" alt="<%= item.comic_name %>" />

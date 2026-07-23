@@ -19,7 +19,15 @@
         <% if (lent && lent.length > 0) { %>
           <div class="lent-list">
             <% lent.forEach((item) => { %>
-              <div class="lent-card">
+              <%
+                const dueDate = new Date(item.due);
+                const now = new Date();
+                const daysLeft = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+                const deadlineClass = daysLeft <= 1
+                  ? 'deadline-card deadline-card--danger'
+                  : (daysLeft <= 3 ? 'deadline-card deadline-card--warning' : '');
+              %>
+              <div class="lent-card <%= deadlineClass %>">
                 <img src="<%= item.image_url || '/images/no-image.png' %>" alt="<%= item.comic_name %>" />
                 <div class="lent-info">
                   <h3><%= item.comic_name %> <%= item.volume %>巻</h3>
