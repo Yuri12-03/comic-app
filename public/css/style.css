@@ -226,6 +226,46 @@ input[type="submit"]:hover {
   color: #4b3f9e;
 }
 
+.borrowed-list,
+.lent-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.borrowed-card,
+.lent-card {
+  background: #faf9ff;
+  border: 1px solid #ece7ff;
+  border-radius: 14px;
+  padding: 14px;
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.borrowed-card:hover,
+.lent-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+}
+
+.borrowed-card img,
+.lent-card img {
+  width: 100%;
+  max-width: 170px;
+  height: 220px;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+  margin: 0 auto 10px;
+  background: #eee;
+}
+
+.borrowed-info,
+.lent-info {
+  text-align: left;
+}
+
 .member-list {
   list-style: none;
   padding: 0;

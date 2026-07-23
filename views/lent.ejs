@@ -17,11 +17,11 @@
         <h2>貸している本一覧</h2>
 
         <% if (lent && lent.length > 0) { %>
-          <div class="borrowed-list">
+          <div class="lent-list">
             <% lent.forEach((item) => { %>
-              <div class="borrowed-card">
+              <div class="lent-card">
                 <img src="<%= item.image_url || '/images/no-image.png' %>" alt="<%= item.comic_name %>" />
-                <div class="borrowed-info">
+                <div class="lent-info">
                   <h3><%= item.comic_name %> <%= item.volume %>巻</h3>
                   <p><strong>借り手:</strong> <%= item.borrower_name %></p>
                   <p><strong>返却期限:</strong> <%= new Date(item.due).toLocaleDateString('ja-JP') %></p>

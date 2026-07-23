@@ -17,26 +17,25 @@
         <h2>借りている本一覧</h2>
 
         <% if (borrowed && borrowed.length > 0) { %>
-          <ul>
+          <div class="borrowed-list">
             <% borrowed.forEach(function(item) { %>
-              <li>
+              <div class="borrowed-card">
                 <a href="/return/<%= item.id %>">
                   <% if (item.image_url && item.image_url.trim() !== '') { %>
-                    <img src="<%= item.image_url %>" alt="<%= item.comic_name %>" style="max-width: 120px; display: block; margin-bottom: 8px;" />
+                    <img src="<%= item.image_url %>" alt="<%= item.comic_name %>" />
                   <% } else { %>
-                    <div style="width: 120px; height: 160px; background: #eee; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">No Image</div>
+                    <img src="/images/no-image.png" alt="<%= item.comic_name %>" />
                   <% } %>
                 </a>
-                <strong><%= item.comic_name %></strong> 第<%= item.volume %>巻
-                <br />
-                貸し手: <%= item.lender_name %>
-                <br />
-                借りた日: <%= new Date(item.borrowed_at).toLocaleDateString('ja-JP') %>
-                <br />
-                返却予定日: <%= new Date(item.due).toLocaleDateString('ja-JP') %>
-              </li>
+                <div class="borrowed-info">
+                  <h3><%= item.comic_name %> <%= item.volume %>巻</h3>
+                  <p><strong>貸し手:</strong> <%= item.lender_name %></p>
+                  <p><strong>借りた日:</strong> <%= new Date(item.borrowed_at).toLocaleDateString('ja-JP') %></p>
+                  <p><strong>返却予定日:</strong> <%= new Date(item.due).toLocaleDateString('ja-JP') %></p>
+                </div>
+              </div>
             <% }); %>
-          </ul>
+          </div>
         <% } else { %>
           <p>現在借りている本はありません。</p>
         <% } %>
