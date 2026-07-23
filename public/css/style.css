@@ -187,7 +187,9 @@ input[type="submit"]:hover {
   color: #4b3f9e;
   font-weight: 700;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .home-card:hover {

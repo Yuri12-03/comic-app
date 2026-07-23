@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>貸している本一覧 | Comic-app</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1><a href="/home">Comic-app</a></h1>
+      <a href="/logout" onclick="return confirm('ログアウトしますか？');">ログアウト</a>
+      <p>こんにちは、<%= username %>さん</p>
+    </header>
+
+    <div class="container">
+      <div class="panel">
+        <h2>貸している本一覧</h2>
+
+        <% if (lent && lent.length > 0) { %>
+          <div class="borrowed-list">
+            <% lent.forEach((item) => { %>
+              <div class="borrowed-card">
+                <img src="<%= item.image_url || '/images/no-image.png' %>" alt="<%= item.comic_name %>" />
+                <div class="borrowed-info">
+                  <h3><%= item.comic_name %> <%= item.volume %>巻</h3>
+                  <p><strong>借り手:</strong> <%= item.borrower_name %></p>
+                  <p><strong>返却期限:</strong> <%= new Date(item.due).toLocaleDateString('ja-JP') %></p>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <p>現在貸している本はありません。</p>
+        <% } %>
+      </div>
+
+      <div class="navigation-links">
+        <a href="/home">ホームへ戻る</a>
+      </div>
+    </div>
+
+    <footer>
+      <p>&copy; 2023 Comic-app. All rights reserved.</p>
+    </footer>
+  </body>
+</html>
