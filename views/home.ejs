@@ -54,7 +54,7 @@
         <% if (notifications && notifications.length > 0) { %>
           <ul>
             <% notifications.forEach(function(item) { %>
-              <li>
+              <li class="<%= item.is_read ? '' : 'notification-unread' %>">
                 <div><%= item.message %></div>
                 <small><%= new Date(item.created_at).toLocaleString('ja-JP') %></small>
               </li>
@@ -66,7 +66,7 @@
       </div>
     </div>
     <footer>
-      <p>&copy; 2023 Mngr. All rights reserved.</p>
+      <p>&copy; 2026 Mngr. All rights reserved.</p>
     </footer>
   </body>
 </html>

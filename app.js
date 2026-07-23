@@ -195,6 +195,17 @@ async function createNotification(userId, message) {
     ]);
 }
 
+async function markNotificationAsRead(notificationId, userId) {
+  if (!notificationId || !userId) {
+    return;
+  }
+
+  await connection.promise().query(
+    `UPDATE notifications SET is_read = TRUE WHERE id = ? AND user_id = ?`,
+    [notificationId, userId],
+  );
+}
+
 async function checkAndSendDueDateNotifications(userId) {
   if (!userId) {
     return;
@@ -398,7 +409,27 @@ app.get("/home", async (req, res) => {
 
   try {
     const [notifications] = await connection.promise().query(
-      `SELECT message, created_at
+      `SELECT id, message, created_at, is_read
+       FROM notifications
+       WHERE user_id = ?
+       ORDER BY created_at DESC, id DESC
+       LIMIT 10`,
+      [req.session.userId],
+    );
+
+    const unreadNotificationIds = notifications
+      .filter((item) => !item.is_read)
+      .map((item) => item.id);
+
+    if (unreadNotificationIds.length > 0) {
+      await connection.promise().query(
+        `UPDATE notifications SET is_read = TRUE WHERE id IN (?) AND user_id = ?`,
+        [unreadNotificationIds, req.session.userId],
+      );
+    }
+
+    const [updatedNotifications] = await connection.promise().query(
+      `SELECT id, message, created_at, is_read
        FROM notifications
        WHERE user_id = ?
        ORDER BY created_at DESC, id DESC
@@ -408,11 +439,31 @@ app.get("/home", async (req, res) => {
 
     res.render("home.ejs", {
       username: req.session.username,
-      notifications,
+      notifications: updatedNotifications,
     });
   } catch (err) {
     console.error(err);
     res.status(500).send("通知の取得に失敗しました");
+  }
+});
+
+app.post("/notifications/:notificationId/read", async (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.redirect("/login");
+  }
+
+  const notificationId = Number(req.params.notificationId);
+
+  if (Number.isNaN(notificationId)) {
+    return res.status(400).send("不正な通知IDです");
+  }
+
+  try {
+    await markNotificationAsRead(notificationId, req.session.userId);
+    return res.redirect("/home");
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send("通知の更新に失敗しました");
   }
 });
 

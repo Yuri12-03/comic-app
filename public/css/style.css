@@ -341,6 +341,16 @@ input[type="submit"]:hover {
   gap: 10px;
 }
 
+.notification-unread {
+  color: #b42318;
+  font-weight: 700;
+  background: #fef3f2;
+  border: 1px solid #fecdca;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
 .member-item {
   display: flex;
   justify-content: space-between;
