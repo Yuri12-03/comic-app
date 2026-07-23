@@ -200,10 +200,12 @@ async function markNotificationAsRead(notificationId, userId) {
     return;
   }
 
-  await connection.promise().query(
-    `UPDATE notifications SET is_read = TRUE WHERE id = ? AND user_id = ?`,
-    [notificationId, userId],
-  );
+  await connection
+    .promise()
+    .query(
+      `UPDATE notifications SET is_read = TRUE WHERE id = ? AND user_id = ?`,
+      [notificationId, userId],
+    );
 }
 
 async function checkAndSendDueDateNotifications(userId) {
@@ -453,10 +455,12 @@ app.post("/notifications/read-all", async (req, res) => {
   }
 
   try {
-    await connection.promise().query(
-      `UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND is_read = FALSE`,
-      [req.session.userId],
-    );
+    await connection
+      .promise()
+      .query(
+        `UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND is_read = FALSE`,
+        [req.session.userId],
+      );
     return res.sendStatus(200);
   } catch (err) {
     console.error(err);
@@ -591,6 +595,25 @@ app.post("/return/:lendingId", async (req, res) => {
   }
 
   try {
+    const [lendingRows] = await connection.promise().query(
+      `SELECT
+         l.lender_id,
+         c.comic_name,
+         u.username AS borrower_name
+       FROM lending l
+       JOIN comic_owning co ON l.owning_id = co.id
+       JOIN comics c ON co.comic_id = c.id
+       JOIN users u ON l.borrower_id = u.id
+       WHERE l.id = ?
+         AND l.borrower_id = ?
+         AND l.status = 'lending'`,
+      [lendingId, req.session.userId],
+    );
+
+    if (lendingRows.length === 0) {
+      return res.status(404).send("対象の貸し出し情報が見つかりません");
+    }
+
     await connection.promise().query(
       `UPDATE lending
        SET status = 'returned', returned_at = CURRENT_TIMESTAMP
@@ -598,9 +621,15 @@ app.post("/return/:lendingId", async (req, res) => {
       [lendingId, req.session.userId],
     );
 
+    const { lender_id: lenderId, comic_name: comicName, borrower_name: borrowerName } = lendingRows[0];
+
     await createNotification(
       req.session.userId,
       `返却を完了しました。貸し出し記録を更新しました。`,
+    );
+    await createNotification(
+      lenderId,
+      `${borrowerName}さんが「${comicName}」を返却しました。`,
     );
 
     res.redirect("/borrowed");
@@ -1100,7 +1129,7 @@ app.post("/lend/:owningId", async (req, res) => {
   try {
     const [userRows] = await connection
       .promise()
-      .query(`SELECT id FROM users WHERE email = ?`, [borrowerEmail]);
+      .query(`SELECT id, username FROM users WHERE email = ?`, [borrowerEmail]);
 
     if (userRows.length === 0) {
       const [owningRows] = await connection.promise().query(
@@ -1146,6 +1175,16 @@ app.post("/lend/:owningId", async (req, res) => {
       });
     }
 
+    const [owningRowsForNotification] = await connection.promise().query(
+      `SELECT c.comic_name
+       FROM comic_owning co
+       JOIN comics c ON co.comic_id = c.id
+       WHERE co.id = ?`,
+      [owningId],
+    );
+
+    const comicName = owningRowsForNotification[0]?.comic_name || "漫画";
+
     await connection.promise().query(
       `INSERT INTO lending (owning_id, borrower_id, lender_id, due, status)
        VALUES (?, ?, ?, ?, 'lending')`,
@@ -1159,11 +1198,11 @@ app.post("/lend/:owningId", async (req, res) => {
 
     await createNotification(
       borrowerId,
-      `貸し出しを受け取りました。返却期限は ${dueDate.toISOString().slice(0, 10)} です。`,
+      `${borrowerName}さんが「${comicName}」を借り受けました。返却期限は ${dueDate.toISOString().slice(0, 10)} です。`,
     );
     await createNotification(
       req.session.userId,
-      `本を貸し出しました。借り手は ${borrowerName} です。`,
+      `${borrowerName}さんに「${comicName}」を貸し出しました。返却期限は ${dueDate.toISOString().slice(0, 10)} です。`,
     );
 
     res.redirect(`/comics/${req.body.comic_id}`);
