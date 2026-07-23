@@ -668,6 +668,9 @@ app.get("/add", (req, res) => {
   }
 
   const presetComicName = req.query.comic_name || "";
+  const presetComicId = req.query.comic_id || "";
+  const presetGroupId = req.query.group_id || "";
+  const presetError = req.query.error || "";
 
   connection.query(
     `SELECT user_groups.id, user_groups.group_name
@@ -684,9 +687,11 @@ app.get("/add", (req, res) => {
 
       res.render("add.ejs", {
         username: req.session.username,
-        error: null,
+        error: presetError,
         groups: groups,
         comicName: presetComicName,
+        comicId: presetComicId,
+        selectedGroupId: presetGroupId,
       });
     },
   );
@@ -701,6 +706,7 @@ app.post("/add", async (req, res) => {
   const volume = Number(req.body.volume) || 1;
   const price = Number(req.body.price) || 0;
   const groupId = req.body.group_id;
+  const redirectComicId = Number(req.body.comic_id);
 
   try {
     let comicId;
@@ -778,19 +784,18 @@ app.post("/add", async (req, res) => {
       );
 
     if (owningResults.length > 0) {
-      const [groups] = await connection.promise().query(
-        `SELECT user_groups.id, user_groups.group_name
-         FROM user_groups
-         JOIN group_members ON user_groups.id = group_members.group_id
-         WHERE group_members.user_id = ?`,
-        [req.session.userId],
-      );
+      const errorMessage = "同じグループに同じ漫画の同じ巻が既に登録されています。";
+      const query = new URLSearchParams({
+        comic_name: comicName || "",
+        comic_id:
+          Number.isInteger(redirectComicId) && redirectComicId > 0
+            ? String(redirectComicId)
+            : "",
+        group_id: groupId || "",
+        error: errorMessage,
+      }).toString();
 
-      return res.render("add.ejs", {
-        username: req.session.username,
-        error: "同じグループに同じ漫画の同じ巻が既に登録されています。",
-        groups: groups,
-      });
+      return res.redirect(`/add?${query}`);
     }
 
     // 5. 所持情報追加
@@ -817,10 +822,23 @@ app.post("/add", async (req, res) => {
       ),
     );
 
+    if (Number.isInteger(redirectComicId) && redirectComicId > 0) {
+      return res.redirect(`/comics/${redirectComicId}`);
+    }
+
     res.redirect("/list");
   } catch (err) {
     console.error("データベースまたは処理エラー:", err);
-    return res.status(500).send("エラーが発生しました: " + err.message);
+    const query = new URLSearchParams({
+      comic_name: comicName || "",
+      comic_id:
+        Number.isInteger(Number(req.body.comic_id)) && Number(req.body.comic_id) > 0
+          ? String(Number(req.body.comic_id))
+          : "",
+      group_id: groupId || "",
+      error: `登録中にエラーが発生しました: ${err.message}`,
+    }).toString();
+    return res.redirect(`/add?${query}`);
   }
 });
 

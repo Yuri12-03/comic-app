@@ -24,7 +24,7 @@
 
         <div class="actions">
           <!-- 新規巻の追加ページへ移動するボタン -->
-          <a href="/add?comic_name=<%= encodeURIComponent(comic.comic_name) %>" class="btn-add">
+          <a href="/add?comic_name=<%= encodeURIComponent(comic.comic_name) %>&comic_id=<%= comic.id %>" class="btn-add">
             新しい巻を追加する
           </a>
         </div>
