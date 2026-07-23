@@ -200,8 +200,8 @@ input[type="submit"]:hover {
 }
 
 .home-card--book {
-  grid-column: 1 / span 2;
-  min-height: 180px;
+  grid-column: 1 / span 3;
+  min-height: 220px;
   padding: 0;
   overflow: hidden;
   position: relative;
