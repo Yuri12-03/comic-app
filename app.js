@@ -704,6 +704,8 @@ app.post("/add", async (req, res) => {
 
   const comicName = req.body.comic_name;
   const volume = Number(req.body.volume) || 1;
+  const volumeStart = Number(req.body.volume_start) || 0;
+  const volumeEnd = Number(req.body.volume_end) || 0;
   const price = Number(req.body.price) || 0;
   const groupId = req.body.group_id;
   const redirectComicId = Number(req.body.comic_id);
@@ -717,7 +719,6 @@ app.post("/add", async (req, res) => {
       isbn: "",
     };
 
-    // 1. comicsテーブル確認
     const [comicResults] = await connection
       .promise()
       .query("SELECT id FROM comics WHERE comic_name = ?", [comicName]);
@@ -725,7 +726,6 @@ app.post("/add", async (req, res) => {
     if (comicResults.length > 0) {
       comicId = comicResults[0].id;
     } else {
-      // 2. 新規漫画登録（APIから取得）
       bookInfo = await fetchBookFromGoogle(comicName, volume);
 
       const [insertComic] = await connection.promise().query(
@@ -735,75 +735,78 @@ app.post("/add", async (req, res) => {
       );
 
       comicId = insertComic.insertId;
-
-      await connection.promise().query(
-        `INSERT INTO comic_volumes (comic_id, volume, image_url)
-         VALUES (?, ?, ?)`,
-        [comicId, volume, bookInfo.imageUrl],
-      );
     }
 
-    // 3. 巻情報確認
-    const [volumeResults] = await connection
-      .promise()
-      .query(
-        `SELECT id, image_url FROM comic_volumes WHERE comic_id = ? AND volume = ?`,
-        [comicId, volume],
-      );
-
-    if (volumeResults.length === 0) {
-      bookInfo = await fetchBookFromGoogle(comicName, volume);
-
-      await connection.promise().query(
-        `INSERT INTO comic_volumes (comic_id, volume, image_url)
-         VALUES (?, ?, ?)`,
-        [comicId, volume, bookInfo.imageUrl],
-      );
-    } else if (
-      !volumeResults[0].image_url ||
-      volumeResults[0].image_url.trim() === ""
-    ) {
-      bookInfo = await fetchBookFromGoogle(comicName, volume);
-
-      if (bookInfo.imageUrl) {
-        await connection
-          .promise()
-          .query(`UPDATE comic_volumes SET image_url = ? WHERE id = ?`, [
-            bookInfo.imageUrl,
-            volumeResults[0].id,
-          ]);
+    const volumesToAdd = [];
+    if (volumeStart > 0 && volumeEnd > 0 && volumeEnd >= volumeStart) {
+      for (let current = volumeStart; current <= volumeEnd; current += 1) {
+        volumesToAdd.push(current);
       }
+    } else {
+      volumesToAdd.push(volume);
     }
 
-    // 4. 所持情報重複確認
-    const [owningResults] = await connection
-      .promise()
-      .query(
-        `SELECT id FROM comic_owning WHERE group_id = ? AND comic_id = ? AND volume = ?`,
-        [groupId, comicId, volume],
+    for (const currentVolume of volumesToAdd) {
+      const [volumeResults] = await connection
+        .promise()
+        .query(
+          `SELECT id, image_url FROM comic_volumes WHERE comic_id = ? AND volume = ?`,
+          [comicId, currentVolume],
+        );
+
+      if (volumeResults.length === 0) {
+        bookInfo = await fetchBookFromGoogle(comicName, currentVolume);
+
+        await connection.promise().query(
+          `INSERT INTO comic_volumes (comic_id, volume, image_url)
+           VALUES (?, ?, ?)`,
+          [comicId, currentVolume, bookInfo.imageUrl],
+        );
+      } else if (
+        !volumeResults[0].image_url ||
+        volumeResults[0].image_url.trim() === ""
+      ) {
+        bookInfo = await fetchBookFromGoogle(comicName, currentVolume);
+
+        if (bookInfo.imageUrl) {
+          await connection
+            .promise()
+            .query(`UPDATE comic_volumes SET image_url = ? WHERE id = ?`, [
+              bookInfo.imageUrl,
+              volumeResults[0].id,
+            ]);
+        }
+      }
+
+      const [owningResults] = await connection
+        .promise()
+        .query(
+          `SELECT id FROM comic_owning WHERE group_id = ? AND comic_id = ? AND volume = ?`,
+          [groupId, comicId, currentVolume],
+        );
+
+      if (owningResults.length > 0) {
+        const errorMessage =
+          `同じグループに同じ漫画の${currentVolume}巻が既に登録されています。`;
+        const query = new URLSearchParams({
+          comic_name: comicName || "",
+          comic_id:
+            Number.isInteger(redirectComicId) && redirectComicId > 0
+              ? String(redirectComicId)
+              : "",
+          group_id: groupId || "",
+          error: errorMessage,
+        }).toString();
+
+        return res.redirect(`/add?${query}`);
+      }
+
+      await connection.promise().query(
+        `INSERT INTO comic_owning (group_id, comic_id, volume, price)
+         VALUES (?, ?, ?, ?)`,
+        [groupId, comicId, currentVolume, price],
       );
-
-    if (owningResults.length > 0) {
-      const errorMessage = "同じグループに同じ漫画の同じ巻が既に登録されています。";
-      const query = new URLSearchParams({
-        comic_name: comicName || "",
-        comic_id:
-          Number.isInteger(redirectComicId) && redirectComicId > 0
-            ? String(redirectComicId)
-            : "",
-        group_id: groupId || "",
-        error: errorMessage,
-      }).toString();
-
-      return res.redirect(`/add?${query}`);
     }
-
-    // 5. 所持情報追加
-    await connection.promise().query(
-      `INSERT INTO comic_owning (group_id, comic_id, volume, price)
-       VALUES (?, ?, ?, ?)`,
-      [groupId, comicId, volume, price],
-    );
 
     const [groupMembers] = await connection
       .promise()
@@ -813,11 +816,16 @@ app.post("/add", async (req, res) => {
       .query(`SELECT group_name FROM user_groups WHERE id = ?`, [groupId]);
     const groupNameText = groupRows[0]?.group_name || "指定グループ";
 
+    const summaryText =
+      volumesToAdd.length > 1
+        ? `${volumesToAdd[0]}〜${volumesToAdd[volumesToAdd.length - 1]}巻`
+        : `${volumesToAdd[0]}巻`;
+
     await Promise.all(
       groupMembers.map((member) =>
         createNotification(
           member.user_id,
-          `グループ「${groupNameText}」に新しい漫画「${comicName}」の${volume}巻が追加されました。`,
+          `グループ「${groupNameText}」に新しい漫画「${comicName}」の${summaryText}が追加されました。`,
         ),
       ),
     );
@@ -832,7 +840,8 @@ app.post("/add", async (req, res) => {
     const query = new URLSearchParams({
       comic_name: comicName || "",
       comic_id:
-        Number.isInteger(Number(req.body.comic_id)) && Number(req.body.comic_id) > 0
+        Number.isInteger(Number(req.body.comic_id)) &&
+        Number(req.body.comic_id) > 0
           ? String(Number(req.body.comic_id))
           : "",
       group_id: groupId || "",
