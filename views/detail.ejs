@@ -38,40 +38,64 @@
 
         <h3>所持している巻一覧</h3>
 
-        <% if (volumes && volumes.length > 0) { %>
-          <div class="volume-grid">
-            <% volumes.forEach(volume => { %>
-              <div class="volume-card">
-                <!-- 表紙画像（存在しない場合はプレースホルダー） -->
-                <img 
-                  src="<%= typeof volume.image_url === 'string' && volume.image_url.trim() !== '' ? volume.image_url : 'https://via.placeholder.com/150x200?text=No+Image' %>" 
-                  alt="<%= comic.comic_name %> <%= volume.volume %>巻" 
-                  class="volume-cover" 
-                />
-                
-                <div class="volume-info">
-                  <h4><%= volume.volume %>巻</h4>
-                  <p><strong>グループ：</strong><%= volume.group_name %></p>
-                  
-                  <% if (typeof volume.price === 'number' && volume.price > 0) { %>
-                    <p class="price">購入価格: ¥<%= volume.price.toLocaleString() %></p>
-                  <% } %>
-                  
-                </div>
-
-                <!-- 削除や編集ボタンを設置する場合の例 -->
-                <div class="volume-actions">
-                  <a href="/lend/<%= volume.owning_id %>" class="btn-add">貸し出す</a>
-                  <form action="/delete-volume" method="post" class="submit-once-form" onsubmit="return confirm('本当に削除しますか？');">
-                    <input type="hidden" name="comic_id" value="<%= comic.id %>">
-                    <input type="hidden" name="volume" value="<%= volume.volume %>">
-                    <button type="submit" class="btn-delete submit-once-button">削除</button>
-                  </form>
-                </div>
-              </div>
-            <% }) %>
+        <form action="/lend-multiple-detail" method="post" class="bulk-lend-form">
+          <div class="bulk-actions">
+            <label class="select-all-toggle">
+              <input type="checkbox" id="select-all-volumes" />
+              <span>すべて選択</span>
+            </label>
+            <div class="bulk-lend-fields">
+              <label for="bulk-borrower-email">借りる相手のメールアドレス</label>
+              <input type="email" id="bulk-borrower-email" name="borrower_email" required />
+              <label for="bulk-due-days">返却日数</label>
+              <input type="number" id="bulk-due-days" name="due_days" min="1" value="7" required />
+              <button type="submit" class="btn-add">まとめて貸し出し</button>
+            </div>
           </div>
-        <% } else { %>
+
+          <% if (successMessage) { %>
+            <p class="success"><%= successMessage %></p>
+          <% } %>
+          <% if (errorMessage) { %>
+            <p class="error"><%= errorMessage %></p>
+          <% } %>
+
+          <% if (volumes && volumes.length > 0) { %>
+            <div class="volume-grid">
+              <% volumes.forEach(volume => { %>
+                <div class="volume-card">
+                  <label class="comic-select-label">
+                    <input type="checkbox" class="volume-select-checkbox" name="owning_ids[]" value="<%= volume.owning_id %>" />
+                    <span>選択</span>
+                  </label>
+
+                  <img 
+                    src="<%= typeof volume.image_url === 'string' && volume.image_url.trim() !== '' ? volume.image_url : 'https://via.placeholder.com/150x200?text=No+Image' %>" 
+                    alt="<%= comic.comic_name %> <%= volume.volume %>巻" 
+                    class="volume-cover" 
+                  />
+                  
+                  <div class="volume-info">
+                    <h4><%= volume.volume %>巻</h4>
+                    <p><strong>グループ：</strong><%= volume.group_name %></p>
+                    
+                    <% if (typeof volume.price === 'number' && volume.price > 0) { %>
+                      <p class="price">購入価格: ¥<%= volume.price.toLocaleString() %></p>
+                    <% } %>
+                  </div>
+
+                  <div class="volume-actions">
+                    <a href="/lend/<%= volume.owning_id %>" class="btn-add">貸し出す</a>
+                    <form action="/delete-volume" method="post" class="submit-once-form" onsubmit="return confirm('本当に削除しますか？');">
+                      <input type="hidden" name="comic_id" value="<%= comic.id %>">
+                      <input type="hidden" name="volume" value="<%= volume.volume %>">
+                      <button type="submit" class="btn-delete submit-once-button">削除</button>
+                    </form>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          <% } else { %>
           <p class="no-data">所持している巻の情報がありません。</p>
         <% } %>
 
@@ -95,6 +119,26 @@
           }
         });
       });
+
+      const selectAllVolumesCheckbox = document.getElementById('select-all-volumes');
+      const volumeCheckboxes = Array.from(document.querySelectorAll('.volume-select-checkbox'));
+
+      if (selectAllVolumesCheckbox) {
+        selectAllVolumesCheckbox.addEventListener('change', function () {
+          volumeCheckboxes.forEach(function (checkbox) {
+            checkbox.checked = selectAllVolumesCheckbox.checked;
+          });
+        });
+
+        volumeCheckboxes.forEach(function (checkbox) {
+          checkbox.addEventListener('change', function () {
+            const allChecked = volumeCheckboxes.length > 0 && volumeCheckboxes.every(function (item) {
+              return item.checked;
+            });
+            selectAllVolumesCheckbox.checked = allChecked;
+          });
+        });
+      }
     </script>
   </body>
 </html>

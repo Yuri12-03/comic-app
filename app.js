@@ -840,6 +840,11 @@ app.get("/comics/:id", async (req, res) => {
     res.render("detail.ejs", {
       comic: comics[0],
       volumes: volumesWithImage,
+      successMessage:
+        req.query.success === "1"
+          ? "選択した巻をまとめて貸し出ししました。"
+          : null,
+      errorMessage: req.query.error ? req.query.error : null,
     });
   } catch (err) {
     console.error(err);
@@ -1213,6 +1218,125 @@ app.post("/lend/:owningId", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send("貸し出し登録に失敗しました");
+  }
+});
+
+app.post("/lend-multiple-detail", async (req, res) => {
+  if (req.session.userId === undefined) {
+    return res.redirect("/login");
+  }
+
+  const borrowerEmail = (req.body.borrower_email || "").trim();
+  const dueDays = Number(req.body.due_days || 7);
+  const rawOwningIds = Array.isArray(req.body.owning_ids)
+    ? req.body.owning_ids
+    : req.body.owning_ids
+      ? [req.body.owning_ids]
+      : [];
+  const owningIds = rawOwningIds
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0);
+
+  if (!borrowerEmail) {
+    return res.redirect(
+      "/comics/" + encodeURIComponent(req.body.comic_id || "") + "?error=" + encodeURIComponent("借りる相手のメールアドレスを入力してください"),
+    );
+  }
+
+  if (!Number.isFinite(dueDays) || dueDays <= 0) {
+    return res.redirect(
+      "/comics/" + encodeURIComponent(req.body.comic_id || "") + "?error=" + encodeURIComponent("返却日数は1以上で指定してください"),
+    );
+  }
+
+  if (owningIds.length === 0) {
+    return res.redirect(
+      "/comics/" + encodeURIComponent(req.body.comic_id || "") + "?error=" + encodeURIComponent("貸し出しする巻を選択してください"),
+    );
+  }
+
+  try {
+    const db = connection.promise();
+    await db.beginTransaction();
+
+    const [userRows] = await db.query(
+      `SELECT id, username FROM users WHERE email = ?`,
+      [borrowerEmail],
+    );
+
+    if (userRows.length === 0) {
+      await db.rollback();
+      return res.redirect(
+        "/comics/" + encodeURIComponent(req.body.comic_id || "") + "?error=" + encodeURIComponent("指定されたメールアドレスのユーザーが見つかりません"),
+      );
+    }
+
+    const borrowerId = userRows[0].id;
+    const borrowerName = userRows[0].username || borrowerEmail;
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + dueDays);
+    const dueDateString = dueDate.toISOString().slice(0, 10);
+
+    const insertedTargets = [];
+
+    for (const owningId of owningIds) {
+      const [owningRows] = await db.query(
+        `SELECT co.id, c.comic_name
+         FROM comic_owning co
+         JOIN comics c ON c.id = co.comic_id
+         WHERE co.id = ?`,
+        [owningId],
+      );
+
+      if (owningRows.length === 0) {
+        continue;
+      }
+
+      const [activeLendingRows] = await db.query(
+        `SELECT id FROM lending WHERE owning_id = ? AND status = 'lending'`,
+        [owningId],
+      );
+
+      if (activeLendingRows.length > 0) {
+        await db.rollback();
+        return res.redirect(
+          "/comics/" + encodeURIComponent(req.body.comic_id || "") + "?error=" + encodeURIComponent(`「${owningRows[0].comic_name}」はすでに貸し出し中です。`),
+        );
+      }
+
+      await db.query(
+        `INSERT INTO lending (owning_id, borrower_id, lender_id, due, status)
+         VALUES (?, ?, ?, ?, 'lending')`,
+        [owningId, borrowerId, req.session.userId, dueDateString],
+      );
+
+      insertedTargets.push(owningRows[0].comic_name);
+    }
+
+    await db.commit();
+
+    for (const comicName of insertedTargets) {
+      await createNotification(
+        borrowerId,
+        `${borrowerName}さんが「${comicName}」を借り受けました。返却期限は ${dueDateString} です。`,
+      );
+      await createNotification(
+        req.session.userId,
+        `${borrowerName}さんに「${comicName}」を貸し出しました。返却期限は ${dueDateString} です。`,
+      );
+    }
+
+    res.redirect(`/comics/${req.body.comic_id || ""}?success=1`);
+  } catch (err) {
+    console.error(err);
+    try {
+      await connection.promise().rollback();
+    } catch (rollbackErr) {
+      console.error(rollbackErr);
+    }
+    res.redirect(
+      "/comics/" + encodeURIComponent(req.body.comic_id || "") + "?error=" + encodeURIComponent("貸し出し登録に失敗しました"),
+    );
   }
 });
 
