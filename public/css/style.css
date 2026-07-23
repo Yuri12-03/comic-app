@@ -12,6 +12,30 @@ header {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
 }
 
+.header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
 header h1 {
   margin: 0;
   font-size: 1.6rem;
@@ -20,6 +44,34 @@ header h1 {
 header a {
   color: white;
   text-decoration: none;
+}
+
+.header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.header-logout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  font-weight: 600;
+}
+
+.header-logout:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.header-greeting {
+  margin: 0;
+  font-size: 0.95rem;
+  opacity: 0.95;
 }
 
 .container {

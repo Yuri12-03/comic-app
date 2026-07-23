@@ -25,12 +25,12 @@
       </div>
     </div>
     <script>
-      document.querySelectorAll('.submit-once-form').forEach(function (form) {
-        form.addEventListener('submit', function () {
-          const button = form.querySelector('.submit-once-button');
+      document.querySelectorAll(".submit-once-form").forEach(function (form) {
+        form.addEventListener("submit", function () {
+          const button = form.querySelector(".submit-once-button");
           if (button) {
             button.disabled = true;
-            button.value = '処理中...';
+            button.value = "処理中...";
           }
         });
       });

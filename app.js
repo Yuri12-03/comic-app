@@ -237,10 +237,11 @@ async function checkAndSendDueDateNotifications(userId) {
           userId,
           `${row.comic_name}（${counterpartLabel}）の返却期限まで残り${daysLeft}日です。お忘れなく返却してください。`,
         );
-        await connection.promise().query(
-          `UPDATE lending SET notified_3days = TRUE WHERE id = ?`,
-          [row.id],
-        );
+        await connection
+          .promise()
+          .query(`UPDATE lending SET notified_3days = TRUE WHERE id = ?`, [
+            row.id,
+          ]);
       }
 
       if (daysLeft <= 1 && !row.notified_1day) {
@@ -249,10 +250,11 @@ async function checkAndSendDueDateNotifications(userId) {
           userId,
           `${row.comic_name}（${counterpartLabel}）の返却期限まで残り${daysLeft}日です。今日中に返却してください。`,
         );
-        await connection.promise().query(
-          `UPDATE lending SET notified_1day = TRUE WHERE id = ?`,
-          [row.id],
-        );
+        await connection
+          .promise()
+          .query(`UPDATE lending SET notified_1day = TRUE WHERE id = ?`, [
+            row.id,
+          ]);
       }
     }
   } catch (err) {
@@ -287,10 +289,9 @@ app.post("/login", async (req, res) => {
   const email = req.body.email;
 
   try {
-    const [results] = await connection.promise().query(
-      "SELECT * FROM users WHERE email = ?",
-      [email],
-    );
+    const [results] = await connection
+      .promise()
+      .query("SELECT * FROM users WHERE email = ?", [email]);
 
     if (results.length > 0) {
       const plain = req.body.password;

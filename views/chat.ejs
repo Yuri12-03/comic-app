@@ -8,9 +8,16 @@
   </head>
   <body>
     <header>
-      <h1><a href="/home">Comic-app</a></h1>
-      <a href="/logout" onclick="return confirm('ログアウトしますか？');">ログアウト</a>
-      <p>こんにちは、<%= username %>さん</p>
+      <div class="header-inner">
+        <div class="header-left">
+          <img src="/images/kame.jpg" alt="ロゴ" class="header-logo" />
+          <h1><a href="/home">Comic-app</a></h1>
+        </div>
+        <div class="header-actions">
+          <a href="/logout" class="header-logout" onclick="return confirm('ログアウトしますか？');">ログアウト</a>
+          <p class="header-greeting">こんにちは、<%= username %>さん</p>
+        </div>
+      </div>
     </header>
 
     <div class="container">
