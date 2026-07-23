@@ -1192,7 +1192,7 @@ app.post("/create_group", (req, res) => {
 
                   await createNotification(
                     userId,
-                    `新しいグループに追加されました。グループID: ${groupId}`,
+                    `新しいグループ「${groupName}」に追加されました。`,
                   );
                 },
               );
